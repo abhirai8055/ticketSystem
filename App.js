@@ -50,6 +50,11 @@ const App = () => {
           component={NewAssignTickets}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="SbmitReviewForm"
+          component={SubmitReviewForm}
+          options={{ headerShown: true }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -13,6 +13,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 // import { db } from '../firebase';
 import { useNavigation } from '@react-navigation/native';
 import { db } from '../../../firebase';
+import { FlatList } from 'react-native-gesture-handler';
 
 const PAGE_SIZE = 10;
 
@@ -61,6 +62,24 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
 
         const combinedTickets = [...engineerTickets, ...staffTickets];
 
+        // Fetch all categories in one go
+        const categoriesSnap = await getDocs(collection(db, 'categories'));
+        const categoryMap = {};
+        categoriesSnap.forEach(doc => {
+          categoryMap[doc.id] = doc.data().name || 'N/A';
+        });
+
+        // Attach category name to each ticket (based on categoryId or category field)
+        const ticketsWithCategoryName = combinedTickets.map(ticket => {
+          const categoryId = ticket.category; // assumes 'category' is the categoryId
+          return {
+            ...ticket,
+            categoryName: categoryMap[categoryId] || 'N/A',
+          };
+        });
+
+        // console.log('Tickets with categories:', ticketsWithCategoryName);
+        setTickets(ticketsWithCategoryName);
         setTickets(combinedTickets);
       } catch (error) {
         console.error('Error fetching closed tickets:', error);
@@ -112,7 +131,7 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
         showsHorizontalScrollIndicator
       >
         <View style={styles.tableContainer}>
-          {/* Table Header */}
+          f{/* Table Header */}
           <View style={styles.tableHeader}>
             {[
               'Ticket ID',
@@ -127,7 +146,6 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
               </View>
             ))}
           </View>
-
           {/* Table Rows */}
           {paginatedTickets.map((item, index) => (
             <View
@@ -144,7 +162,9 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
                 <Text style={styles.cellText}>{item.title || 'N/A'}</Text>
               </View>
               <View style={styles.columnCell}>
-                <Text style={styles.cellText}>{item.category || 'N/A'}</Text>
+                <Text style={styles.cellText}>
+                  {item.categoryName || 'N/A'}
+                </Text>
               </View>
               <View style={styles.columnCell}>
                 <Text style={styles.cellText}>{item.agent || 'N/A'}</Text>
@@ -170,12 +190,6 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
               </View>
 
               <TouchableOpacity
-                // onPress={() =>
-                //   navigation.navigate('TicketDetailsScreen', {
-                //     ticketId: item.id,
-                //   })
-                // }
-
                 onPress={() => {
                   console.log(
                     'Navigating to TicketDetailsScreen with ID:',
@@ -312,7 +326,7 @@ const styles = StyleSheet.create({
     height: 30,
     width: 30,
     margin: 10,
-    marginLeft: 55
+    marginLeft: 55,
   },
   pagination: {
     flexDirection: 'row',
@@ -330,31 +344,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // MAIN
 // import React, { useEffect, useState } from 'react';

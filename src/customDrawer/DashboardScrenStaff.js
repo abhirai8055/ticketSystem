@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { use, useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,15 @@ import {
   ActivityIndicator,
   StyleSheet,
   Image,
+  FlatList,
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { db } from '../firebase';
+import { Alert, BackHandler } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 const STATUSES = [
   { label: 'Last Day', value: 1 },
@@ -21,7 +24,14 @@ const STATUSES = [
   { label: 'Last 30 Days', value: 30 },
 ];
 
-export default function DashboardScreen() {
+const STATUSESYEARS = [
+  { label: 'This Day', value: 1 },
+  { label: 'This Weeks', value: 7 },
+  { label: 'This Months', value: 15 },
+  { label: 'This years', value: 30 },
+];
+export default function DashboardScreenStaff() {
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -54,7 +64,48 @@ export default function DashboardScreen() {
   const [satisOpen, setSatisOpen] = useState(false);
   const [satisDays, setSatisDays] = useState(7);
   const [satisData, setSatisData] = useState([]);
+  const [satisDataCategory, setSatisDataCategory] = useState([]);
 
+  const [priorityLabels, setPriorityLabels] = useState([]);
+  const [priorityData, setPriorityData] = useState({
+    Low: [],
+    Medium: [],
+    High: [],
+    Urgent: [],
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        Alert.alert(
+          'Logout Confirmation',
+          'Do you want to logout and go back to the Login screen?',
+          [
+            {
+              text: 'No',
+              onPress: () => null,
+              style: 'cancel',
+            },
+            {
+              text: 'Yes',
+              onPress: () => {
+                navigation.replace('Login');
+              },
+            },
+          ],
+          { cancelable: false },
+        );
+        return true; // prevent default back action
+      };
+
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress,
+      );
+
+      return () => backHandler.remove();
+    },[]),
+  );
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -73,6 +124,60 @@ export default function DashboardScreen() {
       const key = d.toISOString().slice(0, 10);
       map[key] = 0;
     }
+
+    const fetchPriorityStats = async () => {
+      const now = new Date();
+      const earliest = new Date(now);
+      earliest.setDate(now.getDate() - 6);
+
+      const days = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(earliest);
+        d.setDate(earliest.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        days[key] = { Low: 0, Medium: 0, High: 0, Urgent: 0 };
+      }
+
+      const q = query(collection(db, 'tickets'));
+      const snap = await getDocs(q);
+
+      snap.forEach(doc => {
+        const data = doc.data();
+        const createdAt =
+          data.createdAt?.toDate?.() ?? new Date(data.createdAt);
+        const priority = data.priority || 'Low';
+        if (createdAt >= earliest && createdAt <= now) {
+          const key = createdAt.toISOString().slice(0, 10);
+          if (days[key]) days[key][priority] = (days[key][priority] || 0) + 1;
+        }
+      });
+
+      const labels = Object.keys(days).map(k =>
+        new Date(k).toLocaleDateString('en-GB', {
+          weekday: 'short',
+        }),
+      );
+
+      const low = [],
+        medium = [],
+        high = [],
+        urgent = [];
+
+      Object.values(days).forEach(day => {
+        low.push(day.Low);
+        medium.push(day.Medium);
+        high.push(day.High);
+        urgent.push(day.Urgent);
+      });
+
+      setPriorityLabels(labels);
+      setPriorityData({
+        Low: low,
+        Medium: medium,
+        High: high,
+        Urgent: urgent,
+      });
+    };
 
     const q = query(collection(db, 'tickets'), where('status', '==', status));
     const snap = await getDocs(q);
@@ -98,6 +203,53 @@ export default function DashboardScreen() {
     );
     const values = Object.values(map);
     return { total, labels, values };
+  };
+
+  const fetchPriorityStats = async () => {
+    const now = new Date();
+    const earliest = new Date(now);
+    earliest.setDate(now.getDate() - 6);
+
+    const days = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(earliest);
+      d.setDate(earliest.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      days[key] = { Low: 0, Medium: 0, High: 0, Urgent: 0 };
+    }
+
+    const q = query(collection(db, 'tickets'));
+    const snap = await getDocs(q);
+
+    snap.forEach(doc => {
+      const data = doc.data();
+      const createdAt = data.createdAt?.toDate?.() ?? new Date(data.createdAt);
+      const priority = data.priority || 'Low';
+      if (createdAt >= earliest && createdAt <= now) {
+        const key = createdAt.toISOString().slice(0, 10);
+        if (days[key]) days[key][priority] = (days[key][priority] || 0) + 1;
+      }
+    });
+
+    const labels = Object.keys(days).map(k =>
+      new Date(k).toLocaleDateString('en-GB', {
+        weekday: 'short',
+      }),
+    );
+
+    const low = [],
+      medium = [],
+      high = [],
+      urgent = [];
+    Object.values(days).forEach(day => {
+      low.push(day.Low);
+      medium.push(day.Medium);
+      high.push(day.High);
+      urgent.push(day.Urgent);
+    });
+
+    setPriorityLabels(labels);
+    setPriorityData({ Low: low, Medium: medium, High: high, Urgent: urgent });
   };
 
   const fetchUnassigned = async () => {
@@ -280,6 +432,30 @@ export default function DashboardScreen() {
         legendFontSize: 12,
       },
     ]);
+
+    setSatisDataCategory([
+      {
+        name: 'Tickets by Category 1',
+        population: high,
+        color: '#0863ebff',
+        legendFontColor: '#333',
+        legendFontSize: 12,
+      },
+      {
+        name: 'Tickets by Category 2',
+        population: mid,
+        color: '#931ef2ff',
+        legendFontColor: '#333',
+        legendFontSize: 12,
+      },
+      {
+        name: 'Tickets by Category 4',
+        population: low,
+        color: '#fd6900ff',
+        legendFontColor: '#333',
+        legendFontSize: 12,
+      },
+    ]);
   };
 
   useEffect(() => {
@@ -306,6 +482,11 @@ export default function DashboardScreen() {
         setUnassignedLabels(res.labels);
         setUnassignedData(res.values);
       }),
+      fetchPriorityStats().then(res => {
+        setUnassignedCount(res.total);
+        setUnassignedLabels(res.labels);
+        setUnassignedData(res.values);
+      }),
     ]).finally(() => setLoading(false));
   }, [currentUserId]);
 
@@ -322,28 +503,15 @@ export default function DashboardScreen() {
   }, [currentUserId, satisDays]);
 
   const Card = ({ title, count, labels, values }) => (
-    <View style={styles.card}>
+    <View style={styles.MainCard}>
       <View style={styles.Icon}>
         <Image
           source={require('../images/tickets.png')}
-          style={{ width: 20, height: 20 }}
+          style={{ width: 20, height: 20, padding: 10 }}
         />
         <Text style={styles.heading}>{title}</Text>
       </View>
       <Text style={styles.count}>{count}</Text>
-      {/* <LineChart
-        data={{ labels, datasets: [{ data: values, color: () => '#4a90e2' }] }}
-        width={Dimensions.get('window').width - 70}
-        height={170}
-        chartConfig={{
-          backgroundGradientFrom: '#fff',
-          backgroundGradientTo: '#fff',
-          color: () => '#4a90e2',
-          labelColor: () => '#333',
-        }}
-        style={styles.chart}
-        bezier
-      /> */}
     </View>
   );
 
@@ -357,36 +525,102 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Card
-        title="Tickets Open"
-        count={openCount}
-        labels={openLabels}
-        values={openData}
-      />
-      <Card
-        title="Tickets In Progress"
-        count={inProgressCount}
-        labels={inProgressLabels}
-        values={inProgressData}
-      />
-      <Card
-        title="Tickets Closed"
-        count={closedCount}
-        labels={closedLabels}
-        values={closedData}
-      />
-      <Card
-        title="Tickets Unassigned"
-        count={unassignedCount}
-        labels={unassignedLabels}
-        values={unassignedData}
-      />
+      <View style={styles.cardGrid}>
+        {/* Tickets Cards */}
+        <Card
+          title="My Tickets"
+          count={openCount}
+          labels={openLabels}
+          values={openData}
+        />
+        <Card
+          title="Tickets Open"
+          count={inProgressCount}
+          labels={inProgressLabels}
+          values={inProgressData}
+        />
+        <Card
+          title="Tickets in Progress"
+          count={closedCount}
+          labels={closedLabels}
+          values={closedData}
+        />
+        <Card
+          title="Tickets Closed"
+          count={unassignedCount}
+          labels={unassignedLabels}
+          values={unassignedData}
+        />
+      </View>
+      <View style={styles.cardChart}>
+        <View style={styles.row}>
+          <View>
+            <Text style={styles.heading}>New Tickets Created</Text>
+            <Text style={styles.headingTwo}>This Week</Text>
+          </View>
+          <DropDownPicker
+            open={respOpen}
+            value={respDays}
+            items={STATUSESYEARS}
+            setOpen={setRespOpen}
+            setValue={setRespDays}
+            style={styles.dd}
+            containerStyle={{ width: 130 }}
+            dropDownContainerStyle={{ backgroundColor: '#fff' }}
+          />
+        </View>
+
+        <LineChart
+          data={{
+            labels: priorityLabels,
+            datasets: [
+              {
+                data: priorityData.Low,
+                color: () => '#00bcd4',
+                strokeWidth: 2,
+              },
+              {
+                data: priorityData.Medium,
+                color: () => '#2196f3',
+                strokeWidth: 2,
+              },
+              {
+                data: priorityData.High,
+                color: () => '#ff9800',
+                strokeWidth: 2,
+              },
+              {
+                data: priorityData.Urgent,
+                color: () => '#f44336',
+                strokeWidth: 2,
+              },
+            ],
+            legend: ['Low', 'Medium', 'High', 'Urgent'],
+          }}
+          width={Dimensions.get('window').width - 70}
+          height={220}
+          chartConfig={{
+            backgroundGradientFrom: '#fff',
+            backgroundGradientTo: '#fff',
+            decimalPlaces: 0,
+            color: () => '#333',
+            labelColor: () => '#666',
+            style: { borderRadius: 10 },
+          }}
+          style={styles.chart}
+          bezier
+        />
+      </View>
 
       {/* First Response Time Card */}
-      <View style={styles.card}>
+      <View style={styles.cardChart}>
         <View style={styles.row}>
-          <Text style={styles.heading}>First Response Time</Text>
-          <Text>Average time to first response for tickets</Text>
+          <View style={styles.rowTwo}>
+            <Text style={styles.heading}>First Response Time</Text>
+            <Text style={styles.headingTwo}>
+              Average time to respond to tickets
+            </Text>
+          </View>
           <DropDownPicker
             open={respOpen}
             value={respDays}
@@ -415,10 +649,14 @@ export default function DashboardScreen() {
       </View>
 
       {/* Avg. Resolution Time Card */}
-      <View style={styles.card}>
+      <View style={styles.cardChart}>
         <View style={styles.row}>
-          <Text style={styles.heading}>Avg. Resolution Time</Text>
-          <Text>Average time to resolve tickets</Text>
+          <View style={styles.rowTwo}>
+            <Text style={styles.heading}>First Response Time</Text>
+            <Text style={styles.headingTwo}>
+              Average time to respond to tickets
+            </Text>
+          </View>
           <DropDownPicker
             open={resOpen}
             value={resDays}
@@ -447,13 +685,13 @@ export default function DashboardScreen() {
       </View>
 
       {/* Customer Satisfaction Card */}
-      <View style={styles.card}>
+      <View style={styles.cardChart}>
         <View style={styles.row}>
           <Text style={styles.heading}>Customer Satisfaction</Text>
           <DropDownPicker
             open={satisOpen}
             value={satisDays}
-            items={STATUSES}
+            items={STATUSESYEARS}
             setOpen={setSatisOpen}
             setValue={setSatisDays}
             style={styles.dd}
@@ -475,40 +713,120 @@ export default function DashboardScreen() {
           absolute
         />
       </View>
+
+      {/* Tickets by Category */}
+      <View style={styles.cardChart}>
+        <View style={styles.row}>
+          <Text style={styles.heading}>Customer Satisfaction</Text>
+        </View>
+        <PieChart
+          data={satisDataCategory}
+          width={Dimensions.get('window').width - 70}
+          height={180}
+          chartConfig={{
+            color: () => '#333',
+            labelColor: () => '#333',
+          }}
+          accessor="population"
+          backgroundColor="transparent"
+          paddingLeft="15"
+          absolute
+        />
+      </View>
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: {
+  container: {
+    padding: 20,
+    paddingBottom: 40,
+    backgroundColor: '#f6f6f6',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  MainCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 15,
     elevation: 3,
+    width: '48%',
     flexDirection: 'column',
     alignItems: 'start',
+    justifyContent: 'space-between',
   },
-  heading: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
+  cardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 15,
+    elevation: 3,
+    width: '48%',
+  },
+  cardChart: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 15,
+    elevation: 3,
+    width: '100%',
+  },
+  heading: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 2,
+  },
+  headingTwo: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 2,
+  },
   count: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 'bold',
     color: '#4a90e2',
     textAlign: 'right',
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 5,
   },
-  chart: { borderRadius: 8 },
+  chart: {
+    borderRadius: 8,
+    marginTop: 10,
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 8,
+  },
+  rowTwo: {
+    flexDirection: 'column',
+    gap: 5,
+    marginBottom: 8,
   },
   Icon: {
     flexDirection: 'column',
-    alignItems: 'center',
-    marginBottom: 10,
+    gap: 10,
+    // alignItems: 'center',
+    // marginBottom: 10,
   },
-  dd: { backgroundColor: '#fff', borderColor: '#ccc', marginBottom: 20 },
+  dd: {
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    zIndex: 50,
+    marginTop: 10,
+  },
 });

@@ -156,7 +156,7 @@ export default function NewAssignTickets({ userUid: propUid, route }) {
         style={styles.container}
         showsHorizontalScrollIndicator
       >
-        <View style={styles.filtersWrapper}>
+        {/* <View style={styles.filtersWrapper}>
           <TextInput
             style={styles.searchInput}
             placeholder="Search by id, name"
@@ -170,20 +170,22 @@ export default function NewAssignTickets({ userUid: propUid, route }) {
             style={styles.picker}
           >
             <Picker.Item label="All" value="All" />
-            <Picker.Item label="Hardware" value="Hardware" />
-            <Picker.Item label="Software" value="Software" />
+            <Picker.Item label="Ticket Category 1" value="Ticket Category 1" />
+            <Picker.Item label="Ticket Category 2" value="Ticket Category 2" />
+            <Picker.Item label="Ticket Category 4" value="Ticket Category 4" />
             {/* Add more categories as needed */}
-          </Picker>
+          {/* </Picker> */}
 
-          <Picker
+          {/* <Picker
             selectedValue={selectedPriority}
             onValueChange={setSelectedPriority}
             style={styles.picker}
           >
             <Picker.Item label="All" value="All" />
-            <Picker.Item label="High" value="High" />
-            <Picker.Item label="Medium" value="Medium" />
             <Picker.Item label="Low" value="Low" />
+            <Picker.Item label="Medium" value="Medium" />
+            <Picker.Item label="High" value="High" />
+            <Picker.Item label="High" value="Urgent" />
           </Picker>
 
           <Picker
@@ -203,11 +205,13 @@ export default function NewAssignTickets({ userUid: propUid, route }) {
             style={styles.picker}
           >
             <Picker.Item label="All" value="All" />
-            <Picker.Item label="Agent 1" value="Agent 1" />
-            <Picker.Item label="Agent 2" value="Agent 2" />
+            <Picker.Item label="Jishan" value="Jishan" />
+            <Picker.Item label="Joy" value="Joy" />
+            <Picker.Item label="Sanny" value="Sanny" />
+            <Picker.Item label="ABhatt" value="ABhatt" />
             {/* Add dynamically if needed */}
-          </Picker>
-        </View>
+          {/* </Picker> */}
+        {/* </View> */}
 
         <View style={styles.tableContainer}>
           {/* Table Header */}
@@ -311,171 +315,6 @@ export default function NewAssignTickets({ userUid: propUid, route }) {
     </View>
   );
 }
-
-// const styles = StyleSheet.create({
-//   pageWrapper: {
-//     flex: 1,
-//     backgroundColor: '#f2f2f2',
-//     paddingTop: 10,
-//   },
-//   container: {
-//     backgroundColor: '#fff',
-//   },
-//   center: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     paddingHorizontal: 20,
-//   },
-//   errorText: {
-//     fontSize: 18,
-//     color: 'red',
-//     textAlign: 'center',
-//   },
-//   infoText: {
-//     fontSize: 16,
-//     color: '#555',
-//     textAlign: 'center',
-//   },
-//   tableContainer: {
-//     margin: 10,
-//     borderRadius: 8,
-//     overflow: 'hidden',
-//     backgroundColor: '#fff',
-//     elevation: 2,
-//     borderWidth: 1,
-//     borderColor: '#ccc',
-//   },
-//   tableHeader: {
-//     flexDirection: 'row',
-//     backgroundColor: '#007AFF',
-//   },
-//   columnHeader: {
-//     width: 150,
-//     padding: 12,
-//     justifyContent: 'center',
-//     borderRightWidth: 1,
-//     borderRightColor: '#005BB5',
-//   },
-//   headerText: {
-//     fontSize: 14,
-//     fontWeight: 'bold',
-//     color: '#fff',
-//     textAlign: 'center',
-//   },
-//   tableRow: {
-//     flexDirection: 'row',
-//     borderBottomWidth: 1,
-//     borderBottomColor: '#eee',
-//   },
-//   evenRow: {
-//     backgroundColor: '#f9f9f9',
-//   },
-//   oddRow: {
-//     backgroundColor: '#ffffff',
-//   },
-//   columnCell: {
-//     width: 150,
-//     padding: 12,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     borderRightWidth: 1,
-//     borderRightColor: '#eee',
-//     flexDirection: 'row',
-//     gap: 8,
-//     textAlign: 'center',
-//   },
-//   cellText: {
-//     fontSize: 12,
-//     color: '#333',
-//     textAlign: 'center',
-//   },
-//   priorityBadge: {
-//     backgroundColor: '#00BCD4',
-//     color: '#fff',
-//     fontWeight: 'bold',
-//     paddingHorizontal: 10,
-//     paddingVertical: 4,
-//     borderRadius: 10,
-//     textAlign: 'center',
-//   },
-//   statusBadge: {
-//     paddingHorizontal: 8,
-//     paddingVertical: 4,
-//     borderRadius: 12,
-//     color: '#fff',
-//     fontWeight: 'bold',
-//     overflow: 'hidden',
-//   },
-//   statusClosed: {
-//     backgroundColor: '#e74c3c',
-//   },
-//   statusOpen: {
-//     backgroundColor: '#3498db',
-//   },
-//   statusInProgress: {
-//     backgroundColor: '#27ae60',
-//   },
-//   action: {
-//     height: 30,
-//     width: 30,
-//     marginTop: 5,
-//     marginLeft: 5,
-//   },
-//   acceptBtn: {
-//     borderWidth: 1,
-//     borderColor: '#007BFF',
-//     borderRadius: 4,
-//     paddingHorizontal: 5,
-//     paddingVertical: 4,
-//     marginBottom: 5,
-//   },
-//   pagination: {
-//     flexDirection: 'row',
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     paddingVertical: 10,
-//     backgroundColor: '#fff',
-//     marginHorizontal: 10,
-//     borderRadius: 8,
-//     elevation: 2,
-//   },
-//   pageIndicator: {
-//     marginHorizontal: 20,
-//     fontSize: 16,
-//     fontWeight: 'bold',
-//   },
-
-//   filtersWrapper: {
-//     flexDirection: 'row',
-//     flexWrap: 'wrap',
-//     justifyContent: 'space-between',
-//     padding: 10,
-//     backgroundColor: '#fff',
-//     marginHorizontal: 10,
-//     borderRadius: 8,
-//     elevation: 2,
-//     marginBottom: 5,
-//   },
-//   searchInput: {
-//     borderWidth: 1,
-//     borderColor: '#ccc',
-//     borderRadius: 8,
-//     paddingHorizontal: 10,
-//     paddingVertical: 8,
-//     width: '100%',
-//     marginBottom: 10,
-//     backgroundColor: '#fff',
-//   },
-//   picker: {
-//     width: '48%',
-//     backgroundColor: '#fff',
-//     borderWidth: 1,
-//     borderColor: '#ccc',
-//     borderRadius: 8,
-//     marginBottom: 10,
-//   },
-// });
 
 const styles = StyleSheet.create({
   pageWrapper: {
@@ -642,6 +481,82 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // import React, { useEffect, useState } from 'react';
 // import {

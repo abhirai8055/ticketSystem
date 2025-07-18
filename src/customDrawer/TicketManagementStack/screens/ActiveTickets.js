@@ -8,6 +8,7 @@ import {
   Image,
   TouchableOpacity,
   Button,
+  FlatList,
 } from 'react-native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
@@ -23,36 +24,36 @@ export default function ActiveTickets({ userUid: propUid, route }) {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
- useEffect(() => {
-  const fetchTickets = async () => {
-    try {
-      const ticketsRef = collection(db, 'tickets');
-      const engineerQuery = query(
-        ticketsRef,
-        where('engineerId', '==', userUid)
-      );
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const ticketsRef = collection(db, 'tickets');
+        const engineerQuery = query(
+          ticketsRef,
+          where('engineerId', '==', userUid),
+        );
 
-      const engineerSnap = await getDocs(engineerQuery);
+        const engineerSnap = await getDocs(engineerQuery);
 
-      const engineerTickets = engineerSnap.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        .filter(ticket => ticket.acceptedAt);
+        const engineerTickets = engineerSnap.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .filter(ticket => ticket.acceptedAt);
 
-      setTickets(engineerTickets);
-    } catch (error) {
-      console.error('Error fetching tickets:', error);
-    } finally {
-      setLoading(false);
+        setTickets(engineerTickets);
+      } catch (error) {
+        console.error('Error fetching tickets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userUid) {
+      fetchTickets();
     }
-  };
-
-  if (userUid) {
-    fetchTickets();
-  }
-}, [userUid]);
+  }, [userUid]);
 
   if (!userUid) {
     return (
@@ -86,11 +87,22 @@ export default function ActiveTickets({ userUid: propUid, route }) {
 
   return (
     <View style={styles.pageWrapper}>
-      <ScrollView horizontal style={styles.container} showsHorizontalScrollIndicator>
+      <FlatList
+        horizontal
+        style={styles.container}
+        showsHorizontalScrollIndicator
+      >
         <View style={styles.tableContainer}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            {['Ticket ID', 'Title', 'Category', 'Agent', 'Status', 'Action'].map(header => (
+            {[
+              'Ticket ID',
+              'Title',
+              'Category',
+              'Agent',
+              'Status',
+              'Action',
+            ].map(header => (
               <View key={header} style={styles.columnHeader}>
                 <Text style={styles.headerText}>{header}</Text>
               </View>
@@ -137,7 +149,9 @@ export default function ActiveTickets({ userUid: propUid, route }) {
                   {item.status
                     ? item.status
                         .split('_')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .map(
+                          word => word.charAt(0).toUpperCase() + word.slice(1),
+                        )
                         .join(' ')
                     : 'Pending'}
                 </Text>
@@ -158,7 +172,7 @@ export default function ActiveTickets({ userUid: propUid, route }) {
             </View>
           ))}
         </View>
-      </ScrollView>
+      </FlatList>
 
       {/* Pagination Controls */}
       <View style={styles.pagination}>
@@ -276,7 +290,7 @@ const styles = StyleSheet.create({
     height: 30,
     width: 30,
     margin: 10,
-    marginLeft: 55
+    marginLeft: 55,
   },
   pagination: {
     flexDirection: 'row',
@@ -294,32 +308,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 //AMIN
 // import React, { useEffect, useState } from 'react';

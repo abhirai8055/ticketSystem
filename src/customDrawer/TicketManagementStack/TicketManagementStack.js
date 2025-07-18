@@ -6,7 +6,7 @@ import ClosedTicketScreen from '../TicketManagementStack/screens/ClosedTicketScr
 import TicketsScreen from '../TicketManagementStack/screens/HomeScreen';
 import ActiveTickets from './screens/ActiveTickets';
 import NewAssignTicket from './screens/NewAssignTicket';
-
+import SubmitReviewForm from './screens/submitReviewForm';
 
 const Stack = createStackNavigator();
 
@@ -21,9 +21,9 @@ const TicketManagementStack = ({ route }) => {
         name="HomeScreen"
         options={{ headerShown: false }}
         // children={props => <TicketsScreen {...props} userUid={userUid} />}
-         children={props => (
-          <TicketsScreen {...props} userUid={userUid} userType={userType} />)}
-        
+        children={props => (
+          <TicketsScreen {...props} userUid={userUid} userType={userType} />
+        )}
       />
       <Stack.Screen
         name="OpenTicket"
@@ -62,19 +62,16 @@ const TicketManagementStack = ({ route }) => {
         initialParams={{ userUid }}
         userUid={userUid}
       />
+      <Stack.Screen
+        name="SbmitReviewForm"
+        component={SubmitReviewForm}
+        options={{ headerShown: true }}
+      />
     </Stack.Navigator>
   );
 };
 
 export default TicketManagementStack;
-
-
-
-
-
-
-
-
 
 
 
@@ -101,7 +98,6 @@ export default TicketManagementStack;
 // import ActiveTickets from './screens/ActiveTickets';
 // import NewAssignTicket from './screens/NewAssignTicket';
 
-
 // const Stack = createStackNavigator();
 
 // const TicketManagementStack = ({ route }) => {
@@ -117,7 +113,7 @@ export default TicketManagementStack;
 //         // children={props => <TicketsScreen {...props} userUid={userUid} />}
 //          children={props => (
 //           <TicketsScreen {...props} userUid={userUid} userType={userType} />)}
-        
+
 //       />
 //       <Stack.Screen
 //         name="OpenTicket"

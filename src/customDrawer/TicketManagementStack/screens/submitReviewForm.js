@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  FlatList,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -140,7 +141,7 @@ export default function SubmitReviewForm() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FlatList contentContainerStyle={styles.container}>
       <Text style={styles.heading}>Submit Ticket Review</Text>
       <Text style={styles.ticketId}>
         Ticket-Id: {ticket?.id || 'Loading...'}
@@ -223,12 +224,13 @@ export default function SubmitReviewForm() {
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Submit Review</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </FlatList>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    marginTop: 20,
     padding: 16,
     backgroundColor: '#fff',
   },

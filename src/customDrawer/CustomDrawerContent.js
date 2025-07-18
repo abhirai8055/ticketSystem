@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import {
-  DrawerContentScrollView,
-  DrawerItem,
-} from '@react-navigation/drawer';
+import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import {
   View,
   Text,
@@ -31,7 +28,7 @@ export function CustomDrawerContent(props) {
           routes: [{ name: 'Login' }],
         });
       })
-      .catch((error) => {
+      .catch(error => {
         Alert.alert('Error', 'Failed to logout');
         console.error('Logout error:', error);
       });
@@ -52,7 +49,8 @@ export function CustomDrawerContent(props) {
     { label: 'Closed Ticket', screen: 'ClosedTicket' },
   ];
 
-  const screensToRender = userType === 'engineer' ? engineerScreens : staffScreens;
+  const screensToRender =
+    userType === 'engineer' ? engineerScreens : staffScreens;
 
   return (
     <View style={{ flex: 1 }}>
@@ -117,7 +115,7 @@ export function CustomDrawerContent(props) {
           {/* Ticket Submenus - Based on Role */}
           {ticketExpanded && (
             <View style={styles.subMenu}>
-              {screensToRender.map((item) => {
+              {screensToRender.map(item => {
                 const isActive = currentScreen === item.screen;
                 return (
                   <TouchableOpacity
@@ -155,10 +153,7 @@ export function CustomDrawerContent(props) {
 
       {/* Logout at Bottom */}
       <View style={styles.logoutContainer}>
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </View>
@@ -239,19 +234,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // //MAIN
 // import React, { useState } from 'react';
@@ -495,4 +477,3 @@ const styles = StyleSheet.create({
 //     fontSize: 16,
 //   },
 // });
-
