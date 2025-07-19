@@ -539,19 +539,6 @@
 //   }
 // });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Latest Code
 
 // import React, { useEffect, useState } from 'react';
@@ -868,16 +855,6 @@
 //   },
 // });
 
-
-
-
-
-
-
-
-
-
-
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -888,18 +865,15 @@ import {
   Image,
   TouchableOpacity,
   Button,
-  FlatList,
 } from 'react-native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 // import { db } from '../firebase';
 import { useNavigation } from '@react-navigation/native';
-import { db } from '../../../firebase';
+import { db } from '../../../../firebase';
 
 const PAGE_SIZE = 10;
 
-export default function TicketsScreen({ userUid: propUid, route }) {
-
-
+export default function AllTicketsStaff({ userUid: propUid, route }) {
   const navigation = useNavigation();
 
   // ✅ Corrected: Use UID from either props or route
@@ -909,69 +883,67 @@ export default function TicketsScreen({ userUid: propUid, route }) {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-useEffect(() => {
-  const fetchTickets = async () => {
-    try {
-      const ticketsRef = collection(db, 'tickets');
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const ticketsRef = collection(db, 'tickets');
 
-      const engineerQuery = query(
-        ticketsRef,
-        where('engineerId', '==', userUid)
-      );
-      const staffQuery = query(
-        ticketsRef,
-        where('supportStaffId', '==', userUid)
-      );
+        const engineerQuery = query(
+          ticketsRef,
+          where('engineerId', '==', userUid),
+        );
+        const staffQuery = query(
+          ticketsRef,
+          where('supportStaffId', '==', userUid),
+        );
 
-      const [engineerSnap, staffSnap] = await Promise.all([
-        getDocs(engineerQuery),
-        getDocs(staffQuery)
-      ]);
+        const [engineerSnap, staffSnap] = await Promise.all([
+          getDocs(engineerQuery),
+          getDocs(staffQuery),
+        ]);
 
-      // Combine and remove duplicates (if any)
-      const ticketMap = new Map();
+        // Combine and remove duplicates (if any)
+        const ticketMap = new Map();
 
-      engineerSnap.docs.forEach(doc => {
-        ticketMap.set(doc.id, { id: doc.id, ...doc.data() });
-      });
+        engineerSnap.docs.forEach(doc => {
+          ticketMap.set(doc.id, { id: doc.id, ...doc.data() });
+        });
 
-      staffSnap.docs.forEach(doc => {
-        ticketMap.set(doc.id, { id: doc.id, ...doc.data() });
-      });
+        staffSnap.docs.forEach(doc => {
+          ticketMap.set(doc.id, { id: doc.id, ...doc.data() });
+        });
 
-      const combinedTickets = Array.from(ticketMap.values());
+        const combinedTickets = Array.from(ticketMap.values());
 
-      // Fetch all categories in one go
-      const categoriesSnap = await getDocs(collection(db, 'categories'));
-      const categoryMap = {};
-      categoriesSnap.forEach(doc => {
-        categoryMap[doc.id] = doc.data().name || 'N/A';
-      });
+        // Fetch all categories in one go
+        const categoriesSnap = await getDocs(collection(db, 'categories'));
+        const categoryMap = {};
+        categoriesSnap.forEach(doc => {
+          categoryMap[doc.id] = doc.data().name || 'N/A';
+        });
 
-      // Attach category name to each ticket (based on categoryId or category field)
-      const ticketsWithCategoryName = combinedTickets.map(ticket => {
-        const categoryId = ticket.category; // assumes 'category' is the categoryId
-        return {
-          ...ticket,
-          categoryName: categoryMap[categoryId] || 'N/A'
-        };
-      });
+        // Attach category name to each ticket (based on categoryId or category field)
+        const ticketsWithCategoryName = combinedTickets.map(ticket => {
+          const categoryId = ticket.category; // assumes 'category' is the categoryId
+          return {
+            ...ticket,
+            categoryName: categoryMap[categoryId] || 'N/A',
+          };
+        });
 
-      // console.log('Tickets with categories:', ticketsWithCategoryName);
-      setTickets(ticketsWithCategoryName);
-    } catch (error) {
-      console.error('Error fetching tickets with categories:', error);
-    } finally {
-      setLoading(false);
+        // console.log('Tickets with categories:', ticketsWithCategoryName);
+        setTickets(ticketsWithCategoryName);
+      } catch (error) {
+        console.error('Error fetching tickets with categories:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userUid) {
+      fetchTickets();
     }
-  };
-
-  if (userUid) {
-    fetchTickets();
-  }
-}, [userUid]);
-
-
+  }, [userUid]);
 
   if (!userUid) {
     return (
@@ -1011,14 +983,15 @@ useEffect(() => {
         showsHorizontalScrollIndicator
       >
         <View style={styles.tableContainer}>
+          <Text style={styles.infoText}>Total Tickets</Text>
           {/* Table Header */}
           <View style={styles.tableHeader}>
             {[
               'Ticket ID',
               'Title',
               'Category',
-              'Agent',
               'Priority',
+              'Services Enginner',
               'Status',
               'Action',
             ].map(header => (
@@ -1045,12 +1018,14 @@ useEffect(() => {
               </View>
               <View style={styles.columnCell}>
                 {/* <Text style={styles.cellText}>{item.category || 'N/A'}</Text> */}
-                <Text style={styles.cellText}>{item.categoryName || 'N/A'}</Text> 
+                <Text style={styles.cellText}>
+                  {item.categoryName || 'N/A'}
+                </Text>
               </View>
               <View style={styles.columnCell}>
                 <Text style={styles.cellText}>{item.agent || 'N/A'}</Text>
               </View>
-               <View style={styles.columnCell}>
+              <View style={styles.columnCell}>
                 <Text style={styles.cellText}>{item.priority || 'N/A'}</Text>
               </View>
               <View style={styles.columnCell}>
@@ -1085,7 +1060,11 @@ useEffect(() => {
                 }}
               >
                 <Image
-                  source={require('../../../images/view.png')}
+                  source={require('../../../../images/edit.png')}
+                  style={styles.action}
+                />
+                <Image
+                  source={require('../../../../images/view.png')}
                   style={styles.action}
                 />
               </TouchableOpacity>
@@ -1210,7 +1189,7 @@ const styles = StyleSheet.create({
     height: 30,
     width: 30,
     margin: 10,
-    marginLeft: 55
+    marginLeft: 55,
   },
   pagination: {
     flexDirection: 'row',
@@ -1228,18 +1207,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-
-
-
-
-
-
-
-
-
-
-
 
 //Latest with USerType
 

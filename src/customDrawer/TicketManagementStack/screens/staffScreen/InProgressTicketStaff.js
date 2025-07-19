@@ -12,11 +12,13 @@ import {
 import { collection, query, where, getDocs } from 'firebase/firestore';
 // import { db } from '../firebase';
 import { useNavigation } from '@react-navigation/native';
-import { db } from '../../../firebase';
+import { db } from '../../../../firebase';
 
 const PAGE_SIZE = 10;
 
-const OpenTicketScreen = ({ userUid: propUid, route }) => {
+export default function InProgressTicketScreen({ userUid: propUid, route }){
+ 
+
   const navigation = useNavigation();
 
   // ✅ Corrected: Use UID from either props or route
@@ -26,54 +28,55 @@ const OpenTicketScreen = ({ userUid: propUid, route }) => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        const ticketsRef = collection(db, 'tickets');
+ useEffect(() => {
+  const fetchTickets = async () => {
+    try {
+      const ticketsRef = collection(db, 'tickets');
 
-        // Query for engineer tickets with OPEN status
-        // const engineerQuery = query(
-        //   ticketsRef,
-        //   where('engineerId', '==', userUid),
-        //   where('status', '==', 'OPEN'),
-        // );
+      // // ✅ Query for engineer with status "IN_PROGRESS"
+      // const engineerQuery = query(
+      //   ticketsRef,
+      //   where('engineerId', '==', userUid),
+      //   where('status', '==', 'IN_PROGRESS')
+      // );
 
-        // Query for support staff tickets with OPEN status
-        const staffQuery = query(
-          ticketsRef,
-          where('supportStaffId', '==', userUid),
-          where('status', '==', 'OPEN'),
-        );
+      // ✅ Query for support staff with status "IN_PROGRESS"
+      const staffQuery = query(
+        ticketsRef,
+        where('supportStaffId', '==', userUid),
+        where('status', '==', 'IN_PROGRESS')
+      );
 
-        const [staffSnap] = await Promise.all([
-          // getDocs(engineerQuery),
-          getDocs(staffQuery),
-        ]);
+      const [staffSnap] = await Promise.all([
+        // getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-        // const engineerTickets = engineerSnap.docs.map(doc => ({
-        //   id: doc.id,
-        //   ...doc.data(),
-        // }));
+      // const engineerTickets = engineerSnap.docs.map(doc => ({
+      //   id: doc.id,
+      //   ...doc.data(),
+      // }));
 
-        const staffTickets = staffSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+      const staffTickets = staffSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-        const combinedTickets = [...staffTickets];
+      const combinedTickets = [...staffTickets];
 
-        setTickets(combinedTickets);
-      } catch (error) {
-        console.error('Error fetching open tickets:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (userUid) {
-      fetchTickets();
+      setTickets(combinedTickets);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [userUid]);
+  };
+
+  if (userUid) {
+    fetchTickets();
+  }
+}, [userUid]);
+
 
   if (!userUid) {
     return (
@@ -188,7 +191,7 @@ const OpenTicketScreen = ({ userUid: propUid, route }) => {
                 }}
               >
                 <Image
-                  source={require('../../../images/view.png')}
+                  source={require('../../../../images/view.png')}
                   style={styles.action}
                 />
               </TouchableOpacity>
@@ -215,9 +218,7 @@ const OpenTicketScreen = ({ userUid: propUid, route }) => {
       </View>
     </View>
   );
-};
-
-export default OpenTicketScreen;
+}
 
 const styles = StyleSheet.create({
   pageWrapper: {
@@ -349,6 +350,9 @@ const styles = StyleSheet.create({
 
 
 
+
+
+
 // MAIN
 // import React, { useEffect, useState } from 'react';
 // import {
@@ -368,7 +372,9 @@ const styles = StyleSheet.create({
 
 // const PAGE_SIZE = 10;
 
-// const OpenTicketScreen = ({ userUid: propUid, route }) => {
+// export default function InProgressTicketScreen({ userUid: propUid, route }){
+ 
+
 //   const navigation = useNavigation();
 
 //   // ✅ Corrected: Use UID from either props or route
@@ -378,54 +384,55 @@ const styles = StyleSheet.create({
 //   const [loading, setLoading] = useState(true);
 //   const [currentPage, setCurrentPage] = useState(1);
 
-//   useEffect(() => {
-//     const fetchTickets = async () => {
-//       try {
-//         const ticketsRef = collection(db, 'tickets');
+//  useEffect(() => {
+//   const fetchTickets = async () => {
+//     try {
+//       const ticketsRef = collection(db, 'tickets');
 
-//         // Query for engineer tickets with OPEN status
-//         // const engineerQuery = query(
-//         //   ticketsRef,
-//         //   where('engineerId', '==', userUid),
-//         //   where('status', '==', 'OPEN'),
-//         // );
+//       // // ✅ Query for engineer with status "IN_PROGRESS"
+//       // const engineerQuery = query(
+//       //   ticketsRef,
+//       //   where('engineerId', '==', userUid),
+//       //   where('status', '==', 'IN_PROGRESS')
+//       // );
 
-//         // Query for support staff tickets with OPEN status
-//         const staffQuery = query(
-//           ticketsRef,
-//           where('supportStaffId', '==', userUid),
-//           where('status', '==', 'OPEN'),
-//         );
+//       // ✅ Query for support staff with status "IN_PROGRESS"
+//       const staffQuery = query(
+//         ticketsRef,
+//         where('supportStaffId', '==', userUid),
+//         where('status', '==', 'IN_PROGRESS')
+//       );
 
-//         const [staffSnap] = await Promise.all([
-//           // getDocs(engineerQuery),
-//           getDocs(staffQuery),
-//         ]);
+//       const [staffSnap] = await Promise.all([
+//         // getDocs(engineerQuery),
+//         getDocs(staffQuery),
+//       ]);
 
-//         // const engineerTickets = engineerSnap.docs.map(doc => ({
-//         //   id: doc.id,
-//         //   ...doc.data(),
-//         // }));
+//       // const engineerTickets = engineerSnap.docs.map(doc => ({
+//       //   id: doc.id,
+//       //   ...doc.data(),
+//       // }));
 
-//         const staffTickets = staffSnap.docs.map(doc => ({
-//           id: doc.id,
-//           ...doc.data(),
-//         }));
+//       const staffTickets = staffSnap.docs.map(doc => ({
+//         id: doc.id,
+//         ...doc.data(),
+//       }));
 
-//         const combinedTickets = [...staffTickets];
+//       const combinedTickets = [...staffTickets];
 
-//         setTickets(combinedTickets);
-//       } catch (error) {
-//         console.error('Error fetching open tickets:', error);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     if (userUid) {
-//       fetchTickets();
+//       setTickets(combinedTickets);
+//     } catch (error) {
+//       console.error('Error fetching tickets:', error);
+//     } finally {
+//       setLoading(false);
 //     }
-//   }, [userUid]);
+//   };
+
+//   if (userUid) {
+//     fetchTickets();
+//   }
+// }, [userUid]);
+
 
 //   if (!userUid) {
 //     return (
@@ -567,9 +574,7 @@ const styles = StyleSheet.create({
 //       </View>
 //     </View>
 //   );
-// };
-
-// export default OpenTicketScreen;
+// }
 
 // const styles = StyleSheet.create({
 //   pageWrapper: {

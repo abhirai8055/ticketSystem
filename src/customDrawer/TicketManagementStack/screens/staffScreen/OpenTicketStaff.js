@@ -12,12 +12,11 @@ import {
 import { collection, query, where, getDocs } from 'firebase/firestore';
 // import { db } from '../firebase';
 import { useNavigation } from '@react-navigation/native';
-import { db } from '../../../firebase';
-import { FlatList } from 'react-native-gesture-handler';
+import { db } from '../../../../firebase';
 
 const PAGE_SIZE = 10;
 
-export default function ClosedTicketScreen({ userUid: propUid, route }) {
+const OpenTicketScreen = ({ userUid: propUid, route }) => {
   const navigation = useNavigation();
 
   // ✅ Corrected: Use UID from either props or route
@@ -26,63 +25,46 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
     const fetchTickets = async () => {
       try {
         const ticketsRef = collection(db, 'tickets');
 
-        // ✅ Engineer tickets with status CLOSED
-        const engineerQuery = query(
-          ticketsRef,
-          where('engineerId', '==', userUid),
-          where('status', '==', 'CLOSED'),
-        );
+        // Query for engineer tickets with OPEN status
+        // const engineerQuery = query(
+        //   ticketsRef,
+        //   where('engineerId', '==', userUid),
+        //   where('status', '==', 'OPEN'),
+        // );
 
-        // ✅ Support Staff tickets with status CLOSED
+        // Query for support staff tickets with OPEN status
         const staffQuery = query(
           ticketsRef,
           where('supportStaffId', '==', userUid),
-          where('status', '==', 'CLOSED'),
+          where('status', '==', 'OPEN'),
         );
 
-        const [engineerSnap, staffSnap] = await Promise.all([
-          getDocs(engineerQuery),
+        const [staffSnap] = await Promise.all([
+          // getDocs(engineerQuery),
           getDocs(staffQuery),
         ]);
 
-        const engineerTickets = engineerSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        // const engineerTickets = engineerSnap.docs.map(doc => ({
+        //   id: doc.id,
+        //   ...doc.data(),
+        // }));
 
         const staffTickets = staffSnap.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        const combinedTickets = [...engineerTickets, ...staffTickets];
+        const combinedTickets = [...staffTickets];
 
-        // Fetch all categories in one go
-        const categoriesSnap = await getDocs(collection(db, 'categories'));
-        const categoryMap = {};
-        categoriesSnap.forEach(doc => {
-          categoryMap[doc.id] = doc.data().name || 'N/A';
-        });
-
-        // Attach category name to each ticket (based on categoryId or category field)
-        const ticketsWithCategoryName = combinedTickets.map(ticket => {
-          const categoryId = ticket.category; // assumes 'category' is the categoryId
-          return {
-            ...ticket,
-            categoryName: categoryMap[categoryId] || 'N/A',
-          };
-        });
-
-        // console.log('Tickets with categories:', ticketsWithCategoryName);
-        setTickets(ticketsWithCategoryName);
         setTickets(combinedTickets);
       } catch (error) {
-        console.error('Error fetching closed tickets:', error);
+        console.error('Error fetching open tickets:', error);
       } finally {
         setLoading(false);
       }
@@ -131,13 +113,13 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
         showsHorizontalScrollIndicator
       >
         <View style={styles.tableContainer}>
-          f{/* Table Header */}
+          {/* Table Header */}
           <View style={styles.tableHeader}>
             {[
               'Ticket ID',
               'Title',
               'Category',
-              'Services Enginner',
+              'Agent',
               'Status',
               'Action',
             ].map(header => (
@@ -146,6 +128,7 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
               </View>
             ))}
           </View>
+
           {/* Table Rows */}
           {paginatedTickets.map((item, index) => (
             <View
@@ -162,9 +145,7 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
                 <Text style={styles.cellText}>{item.title || 'N/A'}</Text>
               </View>
               <View style={styles.columnCell}>
-                <Text style={styles.cellText}>
-                  {item.categoryName || 'N/A'}
-                </Text>
+                <Text style={styles.cellText}>{item.category || 'N/A'}</Text>
               </View>
               <View style={styles.columnCell}>
                 <Text style={styles.cellText}>{item.agent || 'N/A'}</Text>
@@ -190,6 +171,12 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
               </View>
 
               <TouchableOpacity
+                // onPress={() =>
+                //   navigation.navigate('TicketDetailsScreen', {
+                //     ticketId: item.id,
+                //   })
+                // }
+
                 onPress={() => {
                   console.log(
                     'Navigating to TicketDetailsScreen with ID:',
@@ -201,7 +188,7 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
                 }}
               >
                 <Image
-                  source={require('../../../images/view.png')}
+                  source={require('../../../../images/view.png')}
                   style={styles.action}
                 />
               </TouchableOpacity>
@@ -228,7 +215,9 @@ export default function ClosedTicketScreen({ userUid: propUid, route }) {
       </View>
     </View>
   );
-}
+};
+
+export default OpenTicketScreen;
 
 const styles = StyleSheet.create({
   pageWrapper: {
@@ -326,7 +315,7 @@ const styles = StyleSheet.create({
     height: 30,
     width: 30,
     margin: 10,
-    marginLeft: 55,
+    marginLeft: 55
   },
   pagination: {
     flexDirection: 'row',
@@ -344,6 +333,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // MAIN
 // import React, { useEffect, useState } from 'react';
@@ -364,7 +368,7 @@ const styles = StyleSheet.create({
 
 // const PAGE_SIZE = 10;
 
-// export default function ClosedTicketScreen({ userUid: propUid, route }) {
+// const OpenTicketScreen = ({ userUid: propUid, route }) => {
 //   const navigation = useNavigation();
 
 //   // ✅ Corrected: Use UID from either props or route
@@ -373,45 +377,46 @@ const styles = StyleSheet.create({
 //   const [tickets, setTickets] = useState([]);
 //   const [loading, setLoading] = useState(true);
 //   const [currentPage, setCurrentPage] = useState(1);
+
 //   useEffect(() => {
 //     const fetchTickets = async () => {
 //       try {
 //         const ticketsRef = collection(db, 'tickets');
 
-//         // ✅ Engineer tickets with status CLOSED
-//         const engineerQuery = query(
-//           ticketsRef,
-//           where('engineerId', '==', userUid),
-//           where('status', '==', 'CLOSED'),
-//         );
+//         // Query for engineer tickets with OPEN status
+//         // const engineerQuery = query(
+//         //   ticketsRef,
+//         //   where('engineerId', '==', userUid),
+//         //   where('status', '==', 'OPEN'),
+//         // );
 
-//         // ✅ Support Staff tickets with status CLOSED
+//         // Query for support staff tickets with OPEN status
 //         const staffQuery = query(
 //           ticketsRef,
 //           where('supportStaffId', '==', userUid),
-//           where('status', '==', 'CLOSED'),
+//           where('status', '==', 'OPEN'),
 //         );
 
-//         const [engineerSnap, staffSnap] = await Promise.all([
-//           getDocs(engineerQuery),
+//         const [staffSnap] = await Promise.all([
+//           // getDocs(engineerQuery),
 //           getDocs(staffQuery),
 //         ]);
 
-//         const engineerTickets = engineerSnap.docs.map(doc => ({
-//           id: doc.id,
-//           ...doc.data(),
-//         }));
+//         // const engineerTickets = engineerSnap.docs.map(doc => ({
+//         //   id: doc.id,
+//         //   ...doc.data(),
+//         // }));
 
 //         const staffTickets = staffSnap.docs.map(doc => ({
 //           id: doc.id,
 //           ...doc.data(),
 //         }));
 
-//         const combinedTickets = [...engineerTickets, ...staffTickets];
+//         const combinedTickets = [...staffTickets];
 
 //         setTickets(combinedTickets);
 //       } catch (error) {
-//         console.error('Error fetching closed tickets:', error);
+//         console.error('Error fetching open tickets:', error);
 //       } finally {
 //         setLoading(false);
 //       }
@@ -466,7 +471,7 @@ const styles = StyleSheet.create({
 //               'Ticket ID',
 //               'Title',
 //               'Category',
-//               'Services Enginner',
+//               'Agent',
 //               'Status',
 //               'Action',
 //             ].map(header => (
@@ -562,7 +567,9 @@ const styles = StyleSheet.create({
 //       </View>
 //     </View>
 //   );
-// }
+// };
+
+// export default OpenTicketScreen;
 
 // const styles = StyleSheet.create({
 //   pageWrapper: {

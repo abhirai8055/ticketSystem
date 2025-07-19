@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
-import { db } from '../../../firebase';
+import { db } from '../../../../firebase';
 
 const PAGE_SIZE = 10;
 
-export default function ActiveTickets({ userUid: propUid, route }) {
+export default function ActiveTicketEngineer({ userUid: propUid, route }) {
   const navigation = useNavigation();
   const userUid = propUid || route?.params?.userUid;
 
@@ -87,7 +87,7 @@ export default function ActiveTickets({ userUid: propUid, route }) {
 
   return (
     <View style={styles.pageWrapper}>
-      <FlatList
+      <ScrollView
         horizontal
         style={styles.container}
         showsHorizontalScrollIndicator
@@ -165,14 +165,14 @@ export default function ActiveTickets({ userUid: propUid, route }) {
                 }}
               >
                 <Image
-                  source={require('../../../images/view.png')}
+                  source={require('../../../../images/view.png')}
                   style={styles.action}
                 />
               </TouchableOpacity>
             </View>
           ))}
         </View>
-      </FlatList>
+      </ScrollView>
 
       {/* Pagination Controls */}
       <View style={styles.pagination}>
@@ -308,6 +308,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //AMIN
 // import React, { useEffect, useState } from 'react';
