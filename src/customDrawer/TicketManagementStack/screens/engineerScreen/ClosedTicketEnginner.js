@@ -349,43 +349,532 @@
 //     fontSize: 16,
 //     fontWeight: 'bold',
 //   },
+// // });
+
+// import React, { useEffect, useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   ScrollView,
+//   ActivityIndicator,
+//   StyleSheet,
+//   Image,
+//   TouchableOpacity,
+// } from 'react-native';
+// import { collection, query, where, getDocs } from 'firebase/firestore';
+// import { useNavigation } from '@react-navigation/native';
+// import { db } from '../../../../firebase';
+// import { TextInput } from 'react-native';
+// import { Picker } from '@react-native-picker/picker';
+
+// const PAGE_SIZE = 10;
+
+// export default function ClosedTicketEnginner({ userUid: propUid, route }) {
+//   const navigation = useNavigation();
+//   const userUid = propUid || route?.params?.userUid;
+
+//   const [tickets, setTickets] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [currentPage, setCurrentPage] = useState(1);
+//   const [searchText, setSearchText] = useState('');
+//   const [selectedCategory, setSelectedCategory] = useState('All');
+//   const [selectedPriority, setSelectedPriority] = useState('All');
+//   const [selectedAgent, setSelectedAgent] = useState('All');
+
+//   useEffect(() => {
+//     const fetchTickets = async () => {
+//       try {
+//         const ticketsRef = collection(db, 'tickets');
+//         const engineerQuery = query(
+//           ticketsRef,
+//           where('engineerId', '==', userUid),
+//           where('status', '==', 'CLOSED'),
+//         );
+
+//         const engineerSnap = await getDocs(engineerQuery);
+//         const engineerTickets = engineerSnap.docs.map(doc => ({
+//           id: doc.id,
+//           ...doc.data(),
+//         }));
+
+//         const categoriesSnap = await getDocs(collection(db, 'categories'));
+//         const categoryMap = {};
+//         categoriesSnap.forEach(doc => {
+//           categoryMap[doc.id] = doc.data().name || 'N/A';
+//         });
+
+//         const ticketsWithCategoryName = engineerTickets.map(ticket => ({
+//           ...ticket,
+//           categoryName: categoryMap[ticket.category] || 'N/A',
+//         }));
+
+//         setTickets(ticketsWithCategoryName);
+//       } catch (error) {
+//         console.error('Error fetching closed tickets:', error);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     if (userUid) {
+//       fetchTickets();
+//     }
+//   }, [userUid]);
+
+//   const filteredTickets = tickets.filter(ticket => {
+//     const matchesSearch =
+//       ticket.ticketId?.toLowerCase().includes(searchText.toLowerCase()) ||
+//       ticket.title?.toLowerCase().includes(searchText.toLowerCase());
+
+//     const matchesCategory =
+//       selectedCategory === 'All' || ticket.categoryName === selectedCategory;
+
+//     const matchesPriority =
+//       selectedPriority === 'All' ||
+//       (ticket.priority &&
+//         ticket.priority.toLowerCase() === selectedPriority.toLowerCase());
+
+//     const matchesAgent =
+//       selectedAgent === 'All' || ticket.agent === selectedAgent;
+
+//     return matchesSearch && matchesCategory && matchesPriority && matchesAgent;
+//   });
+
+//   const totalPages = Math.ceil(filteredTickets.length / PAGE_SIZE);
+//   const startIdx = (currentPage - 1) * PAGE_SIZE;
+//   const paginatedTickets = filteredTickets.slice(
+//     startIdx,
+//     startIdx + PAGE_SIZE,
+//   );
+
+//   if (!userUid) {
+//     return (
+//       <View style={styles.center}>
+//         <Text style={styles.errorText}>
+//           Error: Missing user ID. Please log in again.
+//         </Text>
+//       </View>
+//     );
+//   }
+
+//   if (loading) {
+//     return (
+//       <View style={styles.center}>
+//         <ActivityIndicator size="large" color="#2563eb" />
+//       </View>
+//     );
+//   }
+
+//   return (
+//     <View style={styles.pageWrapper}>
+//       <View style={styles.filtersWrapper}>
+//         <TextInput
+//           style={styles.searchInput}
+//           placeholder="Search by ID or Name"
+//           value={searchText}
+//           onChangeText={setSearchText}
+//           placeholderTextColor="#64748b"
+//         />
+
+//         <View style={styles.filterRow}>
+//           <View style={styles.pickerContainer}>
+//             <Picker
+//               selectedValue={selectedCategory}
+//               onValueChange={setSelectedCategory}
+//               style={styles.picker}
+//               dropdownIconColor="#64748b"
+//             >
+//               <Picker.Item label="All Categories" value="All" />
+//               <Picker.Item
+//                 label="Ticket Category 1"
+//                 value="Ticket Category 1"
+//               />
+//               <Picker.Item
+//                 label="Ticket Category 2"
+//                 value="Ticket Category 2"
+//               />
+//               <Picker.Item
+//                 label="Ticket Category 4"
+//                 value="Ticket Category 4"
+//               />
+//             </Picker>
+//           </View>
+
+//           <View style={styles.pickerContainer}>
+//             <Picker
+//               selectedValue={selectedPriority}
+//               onValueChange={setSelectedPriority}
+//               style={styles.picker}
+//               dropdownIconColor="#64748b"
+//             >
+//               <Picker.Item label="All Priorities" value="All" />
+//               <Picker.Item label="Low" value="LOW" />
+//               <Picker.Item label="Medium" value="MEDIUM" />
+//               <Picker.Item label="High" value="HIGH" />
+//               <Picker.Item label="Urgent" value="URGENT" />
+//             </Picker>
+//           </View>
+
+//           <View style={styles.pickerContainer}>
+//             <Picker
+//               selectedValue={selectedAgent}
+//               onValueChange={setSelectedAgent}
+//               style={styles.picker}
+//               dropdownIconColor="#64748b"
+//             >
+//               <Picker.Item label="All Agents" value="All" />
+//               <Picker.Item label="Jishan" value="Jishan" />
+//               <Picker.Item label="Joy" value="Joy" />
+//               <Picker.Item label="Sanny" value="Sanny" />
+//               <Picker.Item label="ABhatt" value="ABhatt" />
+//             </Picker>
+//           </View>
+//         </View>
+//       </View>
+
+//       <ScrollView
+//         horizontal
+//         style={styles.container}
+//         showsHorizontalScrollIndicator={false}
+//       >
+//         <View style={styles.tableContainer}>
+//           <View style={styles.tableHeader}>
+//             {[
+//               'Ticket ID',
+//               'Title',
+//               'Category',
+//               'Priority',
+//               'Status',
+//               'Agent',
+//               'Customer Review',
+//               'Action',
+//             ].map(header => (
+//               <View key={header} style={styles.columnHeader}>
+//                 <Text style={styles.headerText}>{header}</Text>
+//               </View>
+//             ))}
+//           </View>
+
+//           {tickets.length === 0 ? (
+//             <View style={styles.tableRow}>
+//               <View style={[styles.columnCell, styles.noResultsCell]}>
+//                 <Text style={styles.infoText}>
+//                   No closed tickets assigned to you.
+//                 </Text>
+//               </View>
+//             </View>
+//           ) : paginatedTickets.length === 0 ? (
+//             <View style={styles.tableRow}>
+//               <View style={[styles.columnCell, styles.noResultsCell]}>
+//                 <Text style={styles.infoText}>
+//                   No results found for the applied filters.
+//                 </Text>
+//               </View>
+//             </View>
+//           ) : (
+//             paginatedTickets.map((item, index) => (
+//               <View
+//                 key={item.id}
+//                 style={[
+//                   styles.tableRow,
+//                   index % 2 === 0 ? styles.evenRow : styles.oddRow,
+//                 ]}
+//               >
+//                 <View style={styles.columnCell}>
+//                   <Text style={styles.cellText}>{item.ticketId || 'N/A'}</Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <Text style={styles.cellText}>{item.title || 'N/A'}</Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <Text style={styles.cellText}>
+//                     {item.categoryName || 'N/A'}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <Text
+//                     style={[
+//                       styles.priorityBadge,
+//                       item.priority === 'LOW' && styles.priorityLow,
+//                       item.priority === 'MEDIUM' && styles.priorityMedium,
+//                       item.priority === 'HIGH' && styles.priorityHigh,
+//                       item.priority === 'URGENT' && styles.priorityUrgent,
+//                     ]}
+//                   >
+//                     {item.priority || 'N/A'}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <Text style={[styles.statusBadge, styles.statusClosed]}>
+//                     {item.status
+//                       ? item.status
+//                           .split('_')
+//                           .map(
+//                             word =>
+//                               word.charAt(0).toUpperCase() +
+//                               word.slice(1).toLowerCase(),
+//                           )
+//                           .join(' ')
+//                       : 'Closed'}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <Text style={styles.cellText}>{item.agent || 'N/A'}</Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <Text style={styles.cellText}>
+//                     {item.customerReview || 'No Review'}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.columnCell}>
+//                   <TouchableOpacity
+//                     onPress={() =>
+//                       navigation.navigate('TicketDetails', {
+//                         ticketId: item.id,
+//                       })
+//                     }
+//                   >
+//                     <Image
+//                       source={require('../../../../images/view.png')}
+//                       style={styles.actionIcon}
+//                     />
+//                   </TouchableOpacity>
+//                 </View>
+//               </View>
+//             ))
+//           )}
+//         </View>
+//       </ScrollView>
+
+//       <View style={styles.pagination}>
+//         <TouchableOpacity
+//           style={[
+//             styles.paginationButton,
+//             currentPage === 1 && styles.paginationButtonDisabled,
+//           ]}
+//           onPress={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+//           disabled={currentPage === 1}
+//         >
+//           <Text style={styles.paginationButtonText}>Previous</Text>
+//         </TouchableOpacity>
+//         <Text style={styles.pageIndicator}>
+//           Page {currentPage} of {totalPages}
+//         </Text>
+//         <TouchableOpacity
+//           style={[
+//             styles.paginationButton,
+//             currentPage === totalPages && styles.paginationButtonDisabled,
+//           ]}
+//           onPress={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+//           disabled={currentPage === totalPages}
+//         >
+//           <Text style={styles.paginationButtonText}>Next</Text>
+//         </TouchableOpacity>
+//       </View>
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   pageWrapper: {
+//     flex: 1,
+//     backgroundColor: '#f8fafc',
+//     padding: 16,
+//   },
+//   container: {
+//     flexGrow: 1,
+//   },
+//   center: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     paddingHorizontal: 20,
+//   },
+//   errorText: {
+//     fontSize: 18,
+//     color: '#dc2626',
+//     textAlign: 'center',
+//     fontWeight: '500',
+//   },
+//   infoText: {
+//     fontSize: 16,
+//     color: '#475569',
+//     textAlign: 'center',
+//     fontWeight: '500',
+//   },
+//   filtersWrapper: {
+//     backgroundColor: '#ffffff',
+//     padding: 16,
+//     borderRadius: 12,
+//     marginBottom: 16,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.1,
+//     shadowRadius: 4,
+//     elevation: 3,
+//   },
+//   searchInput: {
+//     borderWidth: 1,
+//     borderColor: '#e2e8f0',
+//     borderRadius: 8,
+//     paddingHorizontal: 12,
+//     paddingVertical: 10,
+//     fontSize: 16,
+//     backgroundColor: '#f8fafc',
+//     marginBottom: 12,
+//   },
+//   filterRow: {
+//     flexDirection: 'row',
+//     flexWrap: 'wrap',
+//     gap: 10,
+//   },
+//   pickerContainer: {
+//     flex: 1,
+//     minWidth: '48%',
+//     borderWidth: 1,
+//     borderColor: '#e2e8f0',
+//     borderRadius: 8,
+//     backgroundColor: '#f8fafc',
+//     overflow: 'hidden',
+//   },
+//   picker: {
+//     fontSize: 16,
+//     color: '#1e293b',
+//   },
+//   tableContainer: {
+//     backgroundColor: '#ffffff',
+//     borderRadius: 12,
+//     overflow: 'hidden',
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.1,
+//     shadowRadius: 4,
+//     elevation: 3,
+//     marginBottom: 16,
+//   },
+//   tableHeader: {
+//     flexDirection: 'row',
+//     backgroundColor: '#2563eb',
+//   },
+//   columnHeader: {
+//     flex: 1,
+//     minWidth: 120,
+//     padding: 12,
+//     justifyContent: 'center',
+//     borderRightWidth: 1,
+//     borderRightColor: '#1e40af',
+//   },
+//   headerText: {
+//     fontSize: 14,
+//     fontWeight: '600',
+//     color: '#ffffff',
+//     textAlign: 'center',
+//   },
+//   tableRow: {
+//     flexDirection: 'row',
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#e2e8f0',
+//   },
+//   evenRow: {
+//     backgroundColor: '#f8fafc',
+//   },
+//   oddRow: {
+//     backgroundColor: '#ffffff',
+//   },
+//   columnCell: {
+//     flex: 1,
+//     minWidth: 120,
+//     padding: 12,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     borderRightWidth: 1,
+//     borderRightColor: '#e2e8f0',
+//   },
+//   noResultsCell: {
+//     flex: 8, // Span across all columns
+//     padding: 20,
+//   },
+//   cellText: {
+//     fontSize: 14,
+//     color: '#1e293b',
+//     textAlign: 'center',
+//     fontWeight: '500',
+//   },
+//   priorityBadge: {
+//     paddingHorizontal: 10,
+//     paddingVertical: 6,
+//     borderRadius: 12,
+//     color: '#ffffff',
+//     fontWeight: '600',
+//     fontSize: 12,
+//     textAlign: 'center',
+//     minWidth: 80,
+//   },
+//   priorityLow: {
+//     backgroundColor: '#06B6D4',
+//   },
+//   priorityMedium: {
+//     backgroundColor: '#3B82F6',
+//   },
+//   priorityHigh: {
+//     backgroundColor: '#F97316',
+//   },
+//   priorityUrgent: {
+//     backgroundColor: '#EF4444',
+//   },
+//   priorityNA: {
+//     backgroundColor: '#94a3b8',
+//   },
+//   statusBadge: {
+//     paddingHorizontal: 10,
+//     paddingVertical: 6,
+//     borderRadius: 12,
+//     color: '#ffffff',
+//     fontWeight: '600',
+//     fontSize: 12,
+//     textAlign: 'center',
+//     minWidth: 80,
+//   },
+//   statusClosed: {
+//     backgroundColor: '#dc2626',
+//   },
+//   actionIcon: {
+//     height: 24,
+//     width: 24,
+//   },
+//   pagination: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//     padding: 12,
+//     backgroundColor: '#ffffff',
+//     borderRadius: 12,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.1,
+//     shadowRadius: 4,
+//     elevation: 3,
+//   },
+//   paginationButton: {
+//     backgroundColor: '#2563eb',
+//     borderRadius: 6,
+//     paddingHorizontal: 16,
+//     paddingVertical: 10,
+//   },
+//   paginationButtonDisabled: {
+//     backgroundColor: '#94a3b8',
+//   },
+//   paginationButtonText: {
+//     color: '#ffffff',
+//     fontWeight: '600',
+//     fontSize: 14,
+//   },
+//   pageIndicator: {
+//     fontSize: 14,
+//     fontWeight: '600',
+//     color: '#1e293b',
+//   },
 // });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -404,6 +893,8 @@ import { TextInput } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
 const PAGE_SIZE = 10;
+const STAR_IMAGE = require('../../../../images/star.png');
+const EMPTY_STAR_IMAGE = require('../../../../images/empty-star.png');
 
 export default function ClosedTicketEnginner({ userUid: propUid, route }) {
   const navigation = useNavigation();
@@ -416,10 +907,20 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedPriority, setSelectedPriority] = useState('All');
   const [selectedAgent, setSelectedAgent] = useState('All');
+  const [agentMap, setAgentMap] = useState({});
 
   useEffect(() => {
     const fetchTickets = async () => {
       try {
+        // Fetch users to map supportStaffId to displayName
+        const usersRef = collection(db, 'users');
+        const usersSnap = await getDocs(usersRef);
+        const agentData = {};
+        usersSnap.forEach(doc => {
+          agentData[doc.id] = doc.data().displayName || 'N/A';
+        });
+        setAgentMap(agentData);
+
         const ticketsRef = collection(db, 'tickets');
         const engineerQuery = query(
           ticketsRef,
@@ -439,12 +940,34 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
           categoryMap[doc.id] = doc.data().name || 'N/A';
         });
 
-        const ticketsWithCategoryName = engineerTickets.map(ticket => ({
-          ...ticket,
-          categoryName: categoryMap[ticket.category] || 'N/A',
-        }));
+        // Fetch reviews for each ticket
+        const reviewsRef = collection(db, 'customer-ticket-reviews');
+        const ticketsWithDetails = await Promise.all(
+          engineerTickets.map(async ticket => {
+            const reviewQuery = query(
+              reviewsRef,
+              where('ticketId', '==', ticket.ticketId),
+            );
+            const reviewSnap = await getDocs(reviewQuery);
+            let rating = 'N/A';
+            let comment = 'No Review';
+            if (reviewSnap.docs.length > 0) {
+              const reviewData = reviewSnap.docs[0].data();
+              rating = reviewData.rating || 'N/A';
+              comment = reviewData.comment || 'No Review';
+            }
 
-        setTickets(ticketsWithCategoryName);
+            return {
+              ...ticket,
+              categoryName: categoryMap[ticket.category] || 'N/A',
+              displayName: agentData[ticket.supportStaffId] || 'N/A',
+              rating: rating,
+              comment: comment,
+            };
+          }),
+        );
+
+        setTickets(ticketsWithDetails);
       } catch (error) {
         console.error('Error fetching closed tickets:', error);
       } finally {
@@ -467,17 +990,21 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
 
     const matchesPriority =
       selectedPriority === 'All' ||
-      (ticket.priority && ticket.priority.toLowerCase() === selectedPriority.toLowerCase());
+      (ticket.priority &&
+        ticket.priority.toLowerCase() === selectedPriority.toLowerCase());
 
     const matchesAgent =
-      selectedAgent === 'All' || ticket.agent === selectedAgent;
+      selectedAgent === 'All' || ticket.displayName === selectedAgent;
 
     return matchesSearch && matchesCategory && matchesPriority && matchesAgent;
   });
 
   const totalPages = Math.ceil(filteredTickets.length / PAGE_SIZE);
   const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const paginatedTickets = filteredTickets.slice(startIdx, startIdx + PAGE_SIZE);
+  const paginatedTickets = filteredTickets.slice(
+    startIdx,
+    startIdx + PAGE_SIZE,
+  );
 
   if (!userUid) {
     return (
@@ -496,6 +1023,31 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
       </View>
     );
   }
+
+  // Function to render stars based on rating
+  const renderStars = rating => {
+    const stars = [];
+    const ratingNum = parseFloat(rating) || 0;
+    const maxStars = 5;
+
+    for (let i = 1; i <= maxStars; i++) {
+      stars.push(
+        <Image
+          key={i}
+          source={ratingNum >= i ? STAR_IMAGE : EMPTY_STAR_IMAGE}
+          style={styles.starIcon}
+        />,
+      );
+    }
+    return (
+      <View style={styles.starRow}>
+        {stars}
+        <Text style={styles.ratingText}>
+          {isNaN(ratingNum) ? 'N/A' : ratingNum.toFixed(1)}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.pageWrapper}>
@@ -517,9 +1069,18 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
               dropdownIconColor="#64748b"
             >
               <Picker.Item label="All Categories" value="All" />
-              <Picker.Item label="Ticket Category 1" value="Ticket Category 1" />
-              <Picker.Item label="Ticket Category 2" value="Ticket Category 2" />
-              <Picker.Item label="Ticket Category 4" value="Ticket Category 4" />
+              <Picker.Item
+                label="Ticket Category 1"
+                value="Ticket Category 1"
+              />
+              <Picker.Item
+                label="Ticket Category 2"
+                value="Ticket Category 2"
+              />
+              <Picker.Item
+                label="Ticket Category 4"
+                value="Ticket Category 4"
+              />
             </Picker>
           </View>
 
@@ -531,10 +1092,10 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
               dropdownIconColor="#64748b"
             >
               <Picker.Item label="All Priorities" value="All" />
-              <Picker.Item label="Low" value="Low" />
-              <Picker.Item label="Medium" value="Medium" />
-              <Picker.Item label="High" value="High" />
-              <Picker.Item label="Urgent" value="Urgent" />
+              <Picker.Item label="Low" value="LOW" />
+              <Picker.Item label="Medium" value="MEDIUM" />
+              <Picker.Item label="High" value="HIGH" />
+              <Picker.Item label="Urgent" value="URGENT" />
             </Picker>
           </View>
 
@@ -546,10 +1107,13 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
               dropdownIconColor="#64748b"
             >
               <Picker.Item label="All Agents" value="All" />
-              <Picker.Item label="Jishan" value="Jishan" />
-              <Picker.Item label="Joy" value="Joy" />
-              <Picker.Item label="Sanny" value="Sanny" />
-              <Picker.Item label="ABhatt" value="ABhatt" />
+              {Object.values(agentMap).map(agentName => (
+                <Picker.Item
+                  key={agentName}
+                  label={agentName}
+                  value={agentName}
+                />
+              ))}
             </Picker>
           </View>
         </View>
@@ -581,13 +1145,17 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
           {tickets.length === 0 ? (
             <View style={styles.tableRow}>
               <View style={[styles.columnCell, styles.noResultsCell]}>
-                <Text style={styles.infoText}>No closed tickets assigned to you.</Text>
+                <Text style={styles.infoText}>
+                  No closed tickets assigned to you.
+                </Text>
               </View>
             </View>
           ) : paginatedTickets.length === 0 ? (
             <View style={styles.tableRow}>
               <View style={[styles.columnCell, styles.noResultsCell]}>
-                <Text style={styles.infoText}>No results found for the applied filters.</Text>
+                <Text style={styles.infoText}>
+                  No results found for the applied filters.
+                </Text>
               </View>
             </View>
           ) : (
@@ -606,16 +1174,18 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
                   <Text style={styles.cellText}>{item.title || 'N/A'}</Text>
                 </View>
                 <View style={styles.columnCell}>
-                  <Text style={styles.cellText}>{item.categoryName || 'N/A'}</Text>
+                  <Text style={styles.cellText}>
+                    {item.categoryName || 'N/A'}
+                  </Text>
                 </View>
                 <View style={styles.columnCell}>
                   <Text
                     style={[
                       styles.priorityBadge,
-                      item.priority === 'Low' && styles.priorityLow,
-                      item.priority === 'Medium' && styles.priorityMedium,
-                      item.priority === 'High' && styles.priorityHigh,
-                      item.priority === 'Urgent' && styles.priorityUrgent,
+                      item.priority === 'LOW' && styles.priorityLow,
+                      item.priority === 'MEDIUM' && styles.priorityMedium,
+                      item.priority === 'HIGH' && styles.priorityHigh,
+                      item.priority === 'URGENT' && styles.priorityUrgent,
                     ]}
                   >
                     {item.priority || 'N/A'}
@@ -626,21 +1196,27 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
                     {item.status
                       ? item.status
                           .split('_')
-                          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                          .map(
+                            word =>
+                              word.charAt(0).toUpperCase() +
+                              word.slice(1).toLowerCase(),
+                          )
                           .join(' ')
                       : 'Closed'}
                   </Text>
                 </View>
                 <View style={styles.columnCell}>
-                  <Text style={styles.cellText}>{item.agent || 'N/A'}</Text>
+                  <Text style={styles.cellText}>
+                    {item.displayName || 'N/A'}
+                  </Text>
                 </View>
                 <View style={styles.columnCell}>
-                  <Text style={styles.cellText}>{item.customerReview || 'N/A'}</Text>
+                  {renderStars(item.rating || 'No Review')}
                 </View>
                 <View style={styles.columnCell}>
                   <TouchableOpacity
                     onPress={() =>
-                      navigation.navigate('ticketDetails', {
+                      navigation.navigate('TicketDetails', {
                         ticketId: item.id,
                       })
                     }
@@ -822,16 +1398,16 @@ const styles = StyleSheet.create({
     minWidth: 80,
   },
   priorityLow: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#06B6D4',
   },
   priorityMedium: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#3B82F6',
   },
   priorityHigh: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#F97316',
   },
   priorityUrgent: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: '#EF4444',
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -849,6 +1425,22 @@ const styles = StyleSheet.create({
   actionIcon: {
     height: 24,
     width: 24,
+  },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starIcon: {
+    width: 20,
+    height: 20,
+    marginHorizontal: 2,
+  },
+  ratingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500',
   },
   pagination: {
     flexDirection: 'row',

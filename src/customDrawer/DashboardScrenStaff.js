@@ -506,8 +506,8 @@ export default function DashboardScreenStaff() {
     <View style={styles.MainCard}>
       <View style={styles.Icon}>
         <Image
-          source={require('../images/tickets.png')}
-          style={{ width: 20, height: 20, padding: 10 }}
+          source={require('../images/ticket-gif.gif')}
+          style={{ width: 40, height: 40, padding: 10 }}
         />
         <Text style={styles.heading}>{title}</Text>
       </View>

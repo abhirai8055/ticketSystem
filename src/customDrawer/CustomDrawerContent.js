@@ -282,15 +282,15 @@ export function CustomDrawerContent(props) {
   const engineerScreens = [
     { label: 'New Assign Tickets', screen: 'NewAssignTickets' },
     { label: 'Active Tickets', screen: 'ActiveTickets' },
-    { label: 'Closed Tickets', screen: 'ClosedTicketEnginner' },
-    { label: 'All Tickets', screen: 'AllTicketsEngineer' },
+    { label: 'Closed Tickets', screen: 'ClosedTicket' },
+    { label: 'All Tickets', screen: 'AllTickets' },
   ];
 
   const staffScreens = [
-    { label: 'All Tickets Staff', screen: 'AllTicketsStaff' },
+    { label: 'All Tickets', screen: 'AllTickets' },
     { label: 'Open Ticket', screen: 'OpenTicket' },
     { label: 'In-Progress Ticket', screen: 'InProgressTicket' },
-    { label: 'Closed Ticket Staff', screen: 'ClosedTicketStaff' },
+    { label: 'Closed Ticket', screen: 'ClosedTicket' },
   ];
 
   const screensToRender =

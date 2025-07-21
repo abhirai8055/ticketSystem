@@ -84,13 +84,13 @@ const AppNavigater = ({ route }) => {
             options={{ headerShown: true }}
           />
           <Drawer.Screen
-            name="ClosedTicketEnginner"
+            name="ClosedTicket"
             component={ClosedTicketEnginner}
             initialParams={{ userUid, userType }}
             options={{ headerShown: true }}
           />
           <Drawer.Screen
-            name="AllTicketsEngineer"
+            name="AllTickets"
             component={AllTicketsEnginner}
             initialParams={{ userUid, userType }}
             options={{ headerShown: true }}
@@ -99,7 +99,7 @@ const AppNavigater = ({ route }) => {
       ) : (
         <>
           <Drawer.Screen
-            name="AllTicketsStaff"
+            name="AllTickets"
             component={AllTicketsStaff}
             initialParams={{ userUid, userType }}
             options={{ headerShown: true }}
@@ -117,7 +117,7 @@ const AppNavigater = ({ route }) => {
             options={{ headerShown: true }}
           />
           <Drawer.Screen
-            name="ClosedTicketStaff"
+            name="ClosedTicket"
             component={ClosedTicketStaff}
             initialParams={{ userUid, userType }}
             options={{ headerShown: true }}

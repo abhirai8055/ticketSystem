@@ -4,10 +4,11 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
 import LoginScreen from './src/LoginScreen';
 import AppNavigater from './src/AppNavigater';
-import TicketDetailsScreen from './src/customDrawer/TicketManagementStack/screens/ticketDetails';
-import SubmitReviewForm from './src/customDrawer/TicketManagementStack/screens/submitReviewForm';
+import TicketDetailsScreen from './src/customDrawer/TicketManagementStack/screens/TicketDetails';
+import SubmitReviewForm from './src/customDrawer/TicketManagementStack/screens/SubmitReviewForm';
 import ActiveTickets from './src/customDrawer/TicketManagementStack/screens/engineerScreen/ActiveTicketsEngineer';
 import NewAssignTicketEngineer from './src/customDrawer/TicketManagementStack/screens/engineerScreen/NewAssignTicketEngineer';
+import EditTicketScreen from './src/customDrawer/TicketManagementStack/screens/EditTicketScreen';
 
 const Stack = createStackNavigator();
 
@@ -26,14 +27,14 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="ticketDetails"
+          name="TicketDetails"
           component={TicketDetailsScreen}
           options={{ headerShown: true }}
         />
         <Stack.Screen
-          name="submitReviewForm"
+          name="SubmitReviewForm"
           component={SubmitReviewForm}
-          options={{ headerShown: false }}
+          options={{ headerShown: true }}
         />
         <Stack.Screen
           name="ActiveTickets"
@@ -46,8 +47,8 @@ const App = () => {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="SbmitReviewForm" // Note: Typo in name, should be SubmitReviewForm
-          component={SubmitReviewForm}
+          name="EditTicket"
+          component={EditTicketScreen}
           options={{ headerShown: true }}
         />
       </Stack.Navigator>
@@ -58,16 +59,6 @@ const App = () => {
 export default App;
 
 const styles = StyleSheet.create({});
-
-
-
-
-
-
-
-
-
-
 
 // ye code Feature Code hai ager Feature me stack navigator ka use hoga to ye code use hoga
 

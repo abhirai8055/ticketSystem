@@ -358,29 +358,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -411,10 +388,21 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
   const [selectedPriority, setSelectedPriority] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedAgent, setSelectedAgent] = useState('All');
+  const [agentMap, setAgentMap] = useState({}); // Store supportStaffId to displayName mapping
 
   useEffect(() => {
-    const fetchTickets = async () => {
+    const fetchTicketsAndAgents = async () => {
       try {
+        // Fetch users to map supportStaffId to displayName
+        const usersRef = collection(db, 'users');
+        const usersSnap = await getDocs(usersRef);
+        const agentData = {};
+        usersSnap.forEach(doc => {
+          agentData[doc.id] = doc.data().displayName || 'N/A';
+        });
+        setAgentMap(agentData);
+
+        // Fetch tickets
         const ticketsRef = collection(db, 'tickets');
         const engineerQuery = query(ticketsRef, where('engineerId', '==', userUid));
         const staffQuery = query(ticketsRef, where('supportStaffId', '==', userUid));
@@ -434,27 +422,30 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
 
         const combinedTickets = Array.from(ticketMap.values());
 
+        // Fetch categories
         const categoriesSnap = await getDocs(collection(db, 'categories'));
         const categoryMap = {};
         categoriesSnap.forEach(doc => {
           categoryMap[doc.id] = doc.data().name || 'N/A';
         });
 
-        const ticketsWithCategoryName = combinedTickets.map(ticket => ({
+        // Map tickets with categoryName and displayName
+        const ticketsWithDetails = combinedTickets.map(ticket => ({
           ...ticket,
           categoryName: categoryMap[ticket.category] || 'N/A',
+          displayName: agentData[ticket.supportStaffId] || 'N/A', // Map supportStaffId to displayName
         }));
 
-        setTickets(ticketsWithCategoryName);
+        setTickets(ticketsWithDetails);
       } catch (error) {
-        console.error('Error fetching tickets with categories:', error);
+        console.error('Error fetching tickets and agents:', error);
       } finally {
         setLoading(false);
       }
     };
 
     if (userUid) {
-      fetchTickets();
+      fetchTicketsAndAgents();
     }
   }, [userUid]);
 
@@ -475,7 +466,7 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
       (ticket.status && ticket.status.toLowerCase() === selectedStatus.toLowerCase());
 
     const matchesAgent =
-      selectedAgent === 'All' || ticket.agent === selectedAgent;
+      selectedAgent === 'All' || ticket.displayName === selectedAgent;
 
     return matchesSearch && matchesCategory && matchesPriority && matchesStatus && matchesAgent;
   });
@@ -536,10 +527,10 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
               dropdownIconColor="#64748b"
             >
               <Picker.Item label="All Priorities" value="All" />
-              <Picker.Item label="Low" value="Low" />
-              <Picker.Item label="Medium" value="Medium" />
-              <Picker.Item label="High" value="High" />
-              <Picker.Item label="Urgent" value="Urgent" />
+              <Picker.Item label="Low" value="LOW" />
+              <Picker.Item label="Medium" value="MEDIUM" />
+              <Picker.Item label="High" value="HIGH" />
+              <Picker.Item label="Urgent" value="URGENT" />
             </Picker>
           </View>
 
@@ -565,10 +556,9 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
               dropdownIconColor="#64748b"
             >
               <Picker.Item label="All Agents" value="All" />
-              <Picker.Item label="Jishan" value="Jishan" />
-              <Picker.Item label="Joy" value="Joy" />
-              <Picker.Item label="Sanny" value="Sanny" />
-              <Picker.Item label="ABhatt" value="ABhatt" />
+              {Object.values(agentMap).map(agentName => (
+                <Picker.Item key={agentName} label={agentName} value={agentName} />
+              ))}
             </Picker>
           </View>
         </View>
@@ -588,7 +578,6 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
               'Priority',
               'Status',
               'Agent',
-              'Customer Review',
               'Action',
             ].map(header => (
               <View key={header} style={styles.columnHeader}>
@@ -631,10 +620,10 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
                   <Text
                     style={[
                       styles.priorityBadge,
-                      item.priority === 'Low' && styles.priorityLow,
-                      item.priority === 'Medium' && styles.priorityMedium,
-                      item.priority === 'High' && styles.priorityHigh,
-                      item.priority === 'Urgent' && styles.priorityUrgent,
+                      item.priority === 'LOW' && styles.priorityLow,
+                      item.priority === 'MEDIUM' && styles.priorityMedium,
+                      item.priority === 'HIGH' && styles.priorityHigh,
+                      item.priority === 'URGENT' && styles.priorityUrgent,
                     ]}
                   >
                     {item.priority || 'N/A'}
@@ -658,15 +647,12 @@ export default function AllTicketsEngineer({ userUid: propUid, route }) {
                   </Text>
                 </View>
                 <View style={styles.columnCell}>
-                  <Text style={styles.cellText}>{item.agent || 'N/A'}</Text>
-                </View>
-                <View style={styles.columnCell}>
-                  <Text style={styles.cellText}>{item.customerReview || 'N/A'}</Text>
+                  <Text style={styles.cellText}>{item.displayName || 'N/A'}</Text>
                 </View>
                 <View style={styles.columnCell}>
                   <TouchableOpacity
                     onPress={() =>
-                      navigation.navigate('ticketDetails', {
+                      navigation.navigate('TicketDetails', {
                         ticketId: item.id,
                       })
                     }
@@ -847,17 +833,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     minWidth: 80,
   },
-  priorityLow: {
-    backgroundColor: '#22c55e',
+    priorityLow: {
+    backgroundColor: '#06B6D4',
   },
   priorityMedium: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#3B82F6',
   },
   priorityHigh: {
-    backgroundColor: '#ef4444',
+    backgroundColor: '#F97316',
   },
   priorityUrgent: {
-    backgroundColor: '#b91c1c',
+    backgroundColor: '#EF4444',
+  },
+  priorityNA: {
+    backgroundColor: '#94a3b8',
   },
   statusBadge: {
     paddingHorizontal: 10,
