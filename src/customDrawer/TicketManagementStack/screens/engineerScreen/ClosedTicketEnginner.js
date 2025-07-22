@@ -1025,7 +1025,39 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
   }
 
   // Function to render stars based on rating
+  // const renderStars = rating => {
+  //   const stars = [];
+  //   const ratingNum = parseFloat(rating) || 0;
+  //   const maxStars = 5;
+
+  //   for (let i = 1; i <= maxStars; i++) {
+  //     stars.push(
+  //       <Image
+  //         key={i}
+  //         source={ratingNum >= i ? STAR_IMAGE : EMPTY_STAR_IMAGE}
+  //         style={styles.starIcon}
+  //       />,
+  //     );
+  //   }
+  //   return (
+  //     <View style={styles.starRow}>
+  //       {stars}
+  //       <Text style={styles.ratingText}>
+  //         {isNaN(ratingNum) ? 'N/A' : ratingNum.toFixed(1)}
+  //       </Text>
+  //     </View>
+  //   );
+  // };
+
   const renderStars = rating => {
+    if (rating === 'N/A') {
+      return (
+        <View style={styles.starRow}>
+          <Text style={styles.cellText}>No Review</Text>
+        </View>
+      );
+    }
+
     const stars = [];
     const ratingNum = parseFloat(rating) || 0;
     const maxStars = 5;
@@ -1034,19 +1066,16 @@ export default function ClosedTicketEnginner({ userUid: propUid, route }) {
       stars.push(
         <Image
           key={i}
-          source={ratingNum >= i ? STAR_IMAGE : EMPTY_STAR_IMAGE}
+          source={
+            ratingNum >= i
+              ? STAR_IMAGE
+              : require('../../../../images/empty-star.png')
+          }
           style={styles.starIcon}
         />,
       );
     }
-    return (
-      <View style={styles.starRow}>
-        {stars}
-        <Text style={styles.ratingText}>
-          {isNaN(ratingNum) ? 'N/A' : ratingNum.toFixed(1)}
-        </Text>
-      </View>
-    );
+    return <View style={styles.starRow}>{stars}</View>;
   };
 
   return (
