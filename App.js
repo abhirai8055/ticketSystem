@@ -1,4 +1,4 @@
-import { StyleSheet,} from 'react-native';
+import { StyleSheet } from 'react-native';
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import SubmitReviewForm from './src/customDrawer/TicketManagementStack/screens/S
 import ActiveTickets from './src/customDrawer/TicketManagementStack/screens/engineerScreen/ActiveTicketsEngineer';
 import NewAssignTicketEngineer from './src/customDrawer/TicketManagementStack/screens/engineerScreen/NewAssignTicketEngineer';
 import EditTicketScreen from './src/customDrawer/TicketManagementStack/screens/EditTicketScreen';
+import SmuDashboard from './src/SmuDashboard';
 
 const Stack = createStackNavigator();
 
@@ -20,6 +21,11 @@ const App = () => {
           name="Login"
           component={LoginScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SmuDashboard"
+          component={SmuDashboard}
+          options={{ headerShown: true }}
         />
         <Stack.Screen
           name="AppNavigater"

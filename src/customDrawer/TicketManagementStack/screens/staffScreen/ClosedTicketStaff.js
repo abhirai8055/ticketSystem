@@ -656,7 +656,7 @@
 //     paddingVertical: 10,
 //   },
 //   paginationButtonDisabled: {
-//     backgroundColor: '#94a3b8',
+//     backgroundColor: '#0f131aff',
 //   },
 //   paginationButtonText: {
 //     color: '#ffffff',

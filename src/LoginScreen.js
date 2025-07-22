@@ -1,3 +1,4 @@
+// Simple Enginner And Staff Login Code
 // import React, { useState } from 'react';
 // import {
 //   View,
@@ -16,17 +17,20 @@
 // export default function LoginScreen({ navigation }) {
 //   const [email, setEmail] = useState('');
 //   const [password, setPassword] = useState('');
+//   const [loading, setLoading] = useState(false);
 
 //   const handleLogin = async () => {
 //     if (!email || !password) {
-//       Alert.alert('Error', 'Please enter both email and password');
+//       Alert.alert('Error', 'Please enter Your Email and Password');
 //       return;
 //     }
+
+//     setLoading(true); // Start loading
 //     try {
 //       const userCredential = await signInWithEmailAndPassword(
 //         auth,
 //         email,
-//         password
+//         password,
 //       );
 //       const user = userCredential.user;
 
@@ -34,22 +38,109 @@
 //       const userDoc = await getDoc(userDocRef);
 
 //       if (userDoc.exists()) {
-//         navigation.navigate('AppNavigater', { userUid: user.uid });
+//         const userData = userDoc.data();
+
+//         if (!userData.role) {
+//           Alert.alert('Error', 'User role not assigned.');
+//           return;
+//         }
+
+//         const roleDocRef = doc(db, 'roles', userData.role);
+//         const roleDoc = await getDoc(roleDocRef);
+
+//         if (!roleDoc.exists()) {
+//           Alert.alert('Error', 'Invalid role assigned to user.');
+//           return;
+//         }
+
+//         const roleData = roleDoc.data();
+//         const roleName = roleData.roleName?.toLowerCase();
+
+//         let userType = '';
+//         if (roleName.includes('engineer')) userType = 'engineer';
+//         else if (roleName.includes('support')) userType = 'supportStaff';
+
+//         navigation.navigate('AppNavigater', {
+//           userUid: user.uid,
+//           userType,
+//         });
 //       } else {
 //         Alert.alert('Error', 'No profile found for this user.');
 //       }
 //     } catch (error) {
+//       console.error('Login Error:', error);
 //       Alert.alert('Login Failed', error.message);
+//     } finally {
+//       setLoading(false); // Stop loading regardless of success or failure
 //     }
 //   };
+
+//   //   const handleLogin = async () => {
+//   //   if (!email || !password) {
+//   //     Alert.alert('Error', 'Please enter both email and password');
+//   //     return;
+//   //   }
+//   //   try {
+//   //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+//   //     const user = userCredential.user;
+
+//   //     const userDocRef = doc(db, 'users', user.uid);
+//   //     const userDoc = await getDoc(userDocRef);
+
+//   //     if (userDoc.exists()) {
+//   //       const userData = userDoc.data();
+//   //       let userType = '';
+//   //       if (userData.engineerId) userType = 'engineerId';
+//   //       else if (userData.supportStaffId) userType = 'supportStaffId';
+
+//   //       navigation.navigate('AppNavigater', {
+//   //         userUid: user.uid,
+//   //         userType,
+//   //       });
+//   //     } else {
+//   //       Alert.alert('Error', 'No profile found for this user.');
+//   //     }
+//   //   } catch (error) {
+//   //     Alert.alert('Login Failed', error.message);
+//   //   }
+//   // };
+
+//   //   const handleLogin = async () => {
+//   //   if (!email || !password) {
+//   //     Alert.alert('Error', 'Please enter both email and password');
+//   //     return;
+//   //   }
+
+//   //   try {
+//   //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+//   //     const user = userCredential.user;
+
+//   //     const userDocRef = doc(db, 'users', user.uid);
+//   //     const userDoc = await getDoc(userDocRef);
+
+//   //     if (userDoc.exists()) {
+//   //       const userData = userDoc.data();
+//   //       let userType = '';
+//   //       if (userData.engineerId) userType = 'engineer';
+//   //       else if (userData.supportStaffId) userType = 'staff';
+//   //       else userType = 'unknown';
+
+//   //       navigation.navigate('AppNavigater', {
+//   //         userUid: user.uid,
+//   //         userType: userType,
+//   //       });
+//   //     } else {
+//   //       Alert.alert('Error', 'No profile found for this user.');
+//   //     }
+//   //   } catch (error) {
+//   //     Alert.alert('Login Failed', error.message);
+//   //   }
+//   // };
 
 //   return (
 //     <SafeAreaView style={styles.container}>
 //       <View style={styles.logoContainer}>
-//         <Image
-//           source={require('./images/logo.webp')}
-//           style={styles.logo}
-//         />
+//         <Image source={require('./images/logo.webp')} style={styles.logo} />
 //         <Text style={styles.title}>JATL</Text>
 //       </View>
 
@@ -78,12 +169,14 @@
 //           onChangeText={setPassword}
 //         />
 
-//         <Text style={styles.agree}>
-//           I agree to the <Text style={styles.terms}>Terms and Conditions</Text>
-//         </Text>
-
-//         <TouchableOpacity style={styles.button} onPress={handleLogin}>
-//           <Text style={styles.buttonText}>Submit</Text>
+//         <TouchableOpacity
+//           style={[styles.button, loading && { backgroundColor: '#a0c6ff' }]}
+//           onPress={handleLogin}
+//           disabled={loading}
+//         >
+//           <Text style={styles.buttonText}>
+//             {loading ? 'Logging in...' : 'Login'}
+//           </Text>
 //         </TouchableOpacity>
 //       </View>
 //     </SafeAreaView>
@@ -94,13 +187,13 @@
 //   container: {
 //     flex: 1,
 //     backgroundColor: '#f4f6fa',
-//     paddingTop: 90
+//     paddingTop: 90,
 //   },
 //   logoContainer: {
 //     flexDirection: 'row',
 //     alignItems: 'center',
 //     justifyContent: 'center',
-//     marginBottom: 80
+//     marginBottom: 80,
 //   },
 //   logo: {
 //     width: 50,
@@ -122,7 +215,6 @@
 //     shadowOpacity: 0.1,
 //     shadowRadius: 10,
 //     shadowOffset: { width: 0, height: 5 },
-
 //   },
 //   headerCard: {
 //     backgroundColor: '#408BFF',
@@ -134,7 +226,7 @@
 //     shadowColor: '#000',
 //     marginTop: -50,
 //     shadowOpacity: 0.1,
-//      marginHorizontal: 20,
+//     marginHorizontal: 20,
 //     elevation: 5,
 //     shadowRadius: 10,
 //     shadowOffset: { width: 0, height: 5 },
@@ -164,24 +256,14 @@
 //     paddingVertical: 12,
 //     fontSize: 16,
 //     backgroundColor: '#f9f9f9',
-//   },
-//   agree: {
-//     textAlign: 'center',
-//     fontSize: 14,
-//     marginVertical: 15,
-//     color: '#333',
-//   },
-//   terms: {
-//     textDecorationLine: 'underline',
-//     color: '#408BFF',
-//     fontWeight: '600',
+//     marginBottom: 15,
 //   },
 //   button: {
 //     backgroundColor: '#408BFF',
 //     paddingVertical: 14,
 //     borderRadius: 8,
 //     alignItems: 'center',
-//     marginTop: 5,
+//     marginTop: 10,
 //   },
 //   buttonText: {
 //     color: '#fff',
@@ -189,6 +271,8 @@
 //     fontWeight: 'bold',
 //   },
 // });
+
+// Enginner And Staff And Login And SMU Code
 
 import React, { useState } from 'react';
 import {
@@ -209,6 +293,37 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  async function loginWithSMU(uid) {
+    console.log(uid);
+
+    try {
+      const userDocRef = doc(db, 'stock-movement-users', uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log(userData);
+
+        if (!userData.role || userData.role !== 'STOCK-MOVEMENT-STAFF') {
+          Alert.alert('Error', 'User is not authorized for stock movement.');
+          return;
+        }
+
+        // Navigate to SmuDashboard on successful login
+        navigation.navigate('SmuDashboard', {
+          userUid: uid,
+          userType: 'stockMovementStaff', // Custom user type
+        });
+      } else {
+        Alert.alert('Error', 'No profile found in stock-movement-users.');
+      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      Alert.alert('Login Failed', error.message);
+    } finally {
+      setLoading(false); // Stop loading regardless of success or failure
+    }
+  }
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -227,6 +342,8 @@ export default function LoginScreen({ navigation }) {
 
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
+
+      console.log(userDoc.exists());
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
@@ -256,78 +373,15 @@ export default function LoginScreen({ navigation }) {
           userType,
         });
       } else {
-        Alert.alert('Error', 'No profile found for this user.');
+        return loginWithSMU(user.uid);
       }
     } catch (error) {
       console.error('Login Error:', error);
       Alert.alert('Login Failed', error.message);
     } finally {
-      setLoading(false); // Stop loading regardless of success or failure
+      setLoading(false);
     }
   };
-
-  //   const handleLogin = async () => {
-  //   if (!email || !password) {
-  //     Alert.alert('Error', 'Please enter both email and password');
-  //     return;
-  //   }
-  //   try {
-  //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  //     const user = userCredential.user;
-
-  //     const userDocRef = doc(db, 'users', user.uid);
-  //     const userDoc = await getDoc(userDocRef);
-
-  //     if (userDoc.exists()) {
-  //       const userData = userDoc.data();
-  //       let userType = '';
-  //       if (userData.engineerId) userType = 'engineerId';
-  //       else if (userData.supportStaffId) userType = 'supportStaffId';
-
-  //       navigation.navigate('AppNavigater', {
-  //         userUid: user.uid,
-  //         userType,
-  //       });
-  //     } else {
-  //       Alert.alert('Error', 'No profile found for this user.');
-  //     }
-  //   } catch (error) {
-  //     Alert.alert('Login Failed', error.message);
-  //   }
-  // };
-
-  //   const handleLogin = async () => {
-  //   if (!email || !password) {
-  //     Alert.alert('Error', 'Please enter both email and password');
-  //     return;
-  //   }
-
-  //   try {
-  //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  //     const user = userCredential.user;
-
-  //     const userDocRef = doc(db, 'users', user.uid);
-  //     const userDoc = await getDoc(userDocRef);
-
-  //     if (userDoc.exists()) {
-  //       const userData = userDoc.data();
-  //       let userType = '';
-  //       if (userData.engineerId) userType = 'engineer';
-  //       else if (userData.supportStaffId) userType = 'staff';
-  //       else userType = 'unknown';
-
-  //       navigation.navigate('AppNavigater', {
-  //         userUid: user.uid,
-  //         userType: userType,
-  //       });
-  //     } else {
-  //       Alert.alert('Error', 'No profile found for this user.');
-  //     }
-  //   } catch (error) {
-  //     Alert.alert('Login Failed', error.message);
-  //   }
-  // };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.logoContainer}>
@@ -361,7 +415,7 @@ export default function LoginScreen({ navigation }) {
         />
 
         <TouchableOpacity
-          style={[styles.button, loading && { backgroundColor: '#a0c6ff' }]}
+          style={[styles.button, loading && {backgroundColor:'#a0c6ff'}]}
           onPress={handleLogin}
           disabled={loading}
         >
