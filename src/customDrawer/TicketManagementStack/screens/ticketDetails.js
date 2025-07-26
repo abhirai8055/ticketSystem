@@ -774,9 +774,7 @@
 //   },
 // });
 
-
-
-// Updated Code 
+// Updated Code
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -806,6 +804,7 @@ import { db } from '../../../firebase';
 import moment from 'moment';
 import { useNavigation } from '@react-navigation/native';
 import DropDownPicker from 'react-native-dropdown-picker';
+import {API_KEY} from '@env'
 
 export default function TicketDetailsScreen({ route }) {
   const ticketId = route?.params?.ticketId;
@@ -840,8 +839,55 @@ export default function TicketDetailsScreen({ route }) {
     { label: 'CLOSED', value: 'CLOSED' },
   ]);
 
+  const templateNameByStatus = {
+    OPEN: 'ticket open',
+    IN_PROGRESS: 'ticket inprogress',
+    CLOSED: 'ticket closereview',
+  };
+
+  const sendTicketOpenNotification = async (options, status) => {
+    let link = `${API_KEY}?number=${options.number}&message=${
+      options.message
+    }&customerName=${options.customerName}&ticketId=${
+      options.ticketId
+    }&serialNumber=${options.serialNumber}&modelNumber=${options.modelNumber}`;
+    if (status === 'CLOSED') {
+      link += `&link=${options?.link}`;
+    }
+    await fetch(link, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  };
+
+
+  //  const sendTicketOpenNotification = async (options, status) => {
+  //   try {
+  //     let link = `${API_KEY}?number=${options.number}&message=${
+  //       options.message
+  //     }&customerName=${options.customerName}&ticketId=${
+  //       options.ticketId
+  //     }&serialNumber=${options.serialNumber}&modelNumber=${options.modelNumber}`;
+  //     if (status === 'CLOSED') {
+  //       link += `&link=${options?.link}`;
+  //     }
+  //     const response = await fetch(link, {
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error('Failed to send notification');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error sending notification:', error);
+  //     Alert.alert('Error', 'Failed to send notification. Please try again.');
+  //   }
+  // };
+
   useEffect(() => {
-    const fetchUserAndTicketData = async () => {
+    const fetchUserAndTicketData = () => {
       try {
         setLoading(true);
         const auth = getAuth();
@@ -851,85 +897,108 @@ export default function TicketDetailsScreen({ route }) {
         }
 
         const ticketRef = doc(db, 'tickets', ticketId);
-        const ticketSnap = await getDoc(ticketRef);
-        if (!ticketSnap.exists()) {
-          console.error('Ticket not found');
-          return;
-        }
+        // Use onSnapshot for real-time updates
+        const unsubscribe = onSnapshot(
+          ticketRef,
+          ticketSnap => {
+            if (!ticketSnap.exists()) {
+              console.error('Ticket not found');
+              setTicket(null);
+              return;
+            }
 
-        const ticketData = { id: ticketSnap.id, ...ticketSnap.data() };
-        setTicket(ticketData);
-        setPriorityValue(ticketData.priority || null);
-        setStatusValue(ticketData.status || null);
+            const ticketData = { id: ticketSnap.id, ...ticketSnap.data() };
+            setTicket(ticketData);
+            setPriorityValue(ticketData.priority || null);
+            setStatusValue(ticketData.status || null);
 
-        const key = `${ticketData.modelId}_${ticketData.serialNumber}`;
-        const productRef = doc(db, 'products', key);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          setAssociatedData({ id: productSnap.id, ...productSnap.data() });
-        }
-
-        if (ticketData.engineerId) {
-          const engineerRef = doc(db, 'users', ticketData.engineerId);
-          const engineerSnap = await getDoc(engineerRef);
-          if (engineerSnap.exists()) {
-            setEngineer({
-              name: engineerSnap.data().displayName || 'N/A',
-              phone: engineerSnap.data().phone || 'N/A',
+            // Fetch associated product data
+            const key = `${ticketData.modelId}_${ticketData.serialNumber}`;
+            const productRef = doc(db, 'products', key);
+            getDoc(productRef).then(productSnap => {
+              if (productSnap.exists()) {
+                setAssociatedData({
+                  id: productSnap.id,
+                  ...productSnap.data(),
+                });
+              }
             });
-          }
-        }
 
-        const assignmentQuery = query(
-          collection(db, 'ticket-assignments'),
-          where('ticketId', '==', ticketId),
-        );
-        const assignmentSnap = await getDocs(assignmentQuery);
-        const assignments = [];
-        for (const docSnap of assignmentSnap.docs) {
-          const data = docSnap.data();
-          let userName = 'N/A';
-          if (data.userId) {
-            const userRef = doc(db, 'users', data.userId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              userName = userSnap.data().displayName || 'N/A';
+            // Fetch engineer data
+            if (ticketData.engineerId) {
+              const engineerRef = doc(db, 'users', ticketData.engineerId);
+              getDoc(engineerRef).then(engineerSnap => {
+                if (engineerSnap.exists()) {
+                  setEngineer({
+                    name: engineerSnap.data().displayName || 'N/A',
+                    phone: engineerSnap.data().phone || 'N/A',
+                  });
+                }
+              });
             }
-          }
-          assignments.push({
-            id: docSnap.id,
-            userName,
-            roleName: data.roleName,
-            createdAt: data.createdAt,
-          });
-        }
-        assignments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setAssignmentHistory(assignments);
 
-        const reviewsQuery = query(
-          collection(db, 'ticket-staff-review'),
-          where('ticketId', '==', ticketId),
+            // Fetch assignment history
+            const assignmentQuery = query(
+              collection(db, 'ticket-assignments'),
+              where('ticketId', '==', ticketId),
+            );
+            getDocs(assignmentQuery).then(assignmentSnap => {
+              const assignments = [];
+              assignmentSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                const userRef = doc(db, 'users', data.userId);
+                getDoc(userRef).then(userSnap => {
+                  const userName = userSnap.exists()
+                    ? userSnap.data().displayName || 'N/A'
+                    : 'N/A';
+                  assignments.push({
+                    id: docSnap.id,
+                    userName,
+                    roleName: data.roleName,
+                    createdAt: data.createdAt,
+                  });
+                  assignments.sort(
+                    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+                  );
+                  setAssignmentHistory(assignments);
+                });
+              });
+            });
+
+            // Fetch engineer reviews
+            const reviewsQuery = query(
+              collection(db, 'ticket-staff-review'),
+              where('ticketId', '==', ticketId),
+            );
+            getDocs(reviewsQuery).then(reviewsSnap => {
+              const reviewList = [];
+              reviewsSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                const userRef = doc(db, 'users', data.userId);
+                getDoc(userRef).then(userSnap => {
+                  const name = userSnap.exists()
+                    ? userSnap.data().displayName || 'N/A'
+                    : 'N/A';
+                  reviewList.push({
+                    id: docSnap.id,
+                    ...data,
+                    name,
+                  });
+                  reviewList.sort(
+                    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+                  );
+                  setEngineerReview(reviewList);
+                });
+              });
+            });
+          },
+          error => {
+            console.error('Error fetching ticket:', error);
+            setTicket(null);
+          },
         );
-        const reviewsSnap = await getDocs(reviewsQuery);
-        const reviewList = [];
-        for (const docSnap of reviewsSnap.docs) {
-          const data = docSnap.data();
-          let name = 'N/A';
-          if (data.userId) {
-            const userRef = doc(db, 'users', data.userId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              name = userSnap.data().displayName || 'N/A';
-            }
-          }
-          reviewList.push({
-            id: docSnap.id,
-            ...data,
-            name,
-          });
-        }
-        reviewList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setEngineerReview(reviewList);
+
+        return () => unsubscribe();
       } catch (error) {
         console.error('Error fetching details:', error);
       } finally {
@@ -940,25 +1009,129 @@ export default function TicketDetailsScreen({ route }) {
     fetchUserAndTicketData();
   }, [ticketId]);
 
+  // useEffect(() => {
+  //   const fetchUserAndTicketData = async () => {
+  //     try {
+  //       setLoading(true);
+  //       const auth = getAuth();
+  //       const currentUser = auth.currentUser;
+  //       if (currentUser) {
+  //         setCurrentUserId(currentUser.uid);
+  //       }
+
+  //       const ticketRef = doc(db, 'tickets', ticketId);
+  //       const ticketSnap = await getDoc(ticketRef);
+  //       if (!ticketSnap.exists()) {
+  //         console.error('Ticket not found');
+  //         return;
+  //       }
+
+  //       const ticketData = { id: ticketSnap.id, ...ticketSnap.data() };
+  //       setTicket(ticketData);
+  //       setPriorityValue(ticketData.priority || null);
+  //       setStatusValue(ticketData.status || null);
+
+  //       const key = `${ticketData.modelId}_${ticketData.serialNumber}`;
+  //       const productRef = doc(db, 'products', key);
+  //       const productSnap = await getDoc(productRef);
+  //       if (productSnap.exists()) {
+  //         setAssociatedData({ id: productSnap.id, ...productSnap.data() });
+  //       }
+
+  //       if (ticketData.engineerId) {
+  //         const engineerRef = doc(db, 'users', ticketData.engineerId);
+  //         const engineerSnap = await getDoc(engineerRef);
+  //         if (engineerSnap.exists()) {
+  //           setEngineer({
+  //             name: engineerSnap.data().displayName || 'N/A',
+  //             phone: engineerSnap.data().phone || 'N/A',
+  //           });
+  //         }
+  //       }
+
+  //       const assignmentQuery = query(
+  //         collection(db, 'ticket-assignments'),
+  //         where('ticketId', '==', ticketId),
+  //       );
+  //       const assignmentSnap = await getDocs(assignmentQuery);
+  //       const assignments = [];
+  //       for (const docSnap of assignmentSnap.docs) {
+  //         const data = docSnap.data();
+  //         let userName = 'N/A';
+  //         if (data.userId) {
+  //           const userRef = doc(db, 'users', data.userId);
+  //           const userSnap = await getDoc(userRef);
+  //           if (userSnap.exists()) {
+  //             userName = userSnap.data().displayName || 'N/A';
+  //           }
+  //         }
+  //         assignments.push({
+  //           id: docSnap.id,
+  //           userName,
+  //           roleName: data.roleName,
+  //           createdAt: data.createdAt,
+  //         });
+  //       }
+  //       assignments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  //       setAssignmentHistory(assignments);
+
+  //       const reviewsQuery = query(
+  //         collection(db, 'ticket-staff-review'),
+  //         where('ticketId', '==', ticketId),
+  //       );
+  //       const reviewsSnap = await getDocs(reviewsQuery);
+  //       const reviewList = [];
+  //       for (const docSnap of reviewsSnap.docs) {
+  //         const data = docSnap.data();
+  //         let name = 'N/A';
+  //         if (data.userId) {
+  //           const userRef = doc(db, 'users', data.userId);
+  //           const userSnap = await getDoc(userRef);
+  //           if (userSnap.exists()) {
+  //             name = userSnap.data().displayName || 'N/A';
+  //           }
+  //         }
+  //         reviewList.push({
+  //           id: docSnap.id,
+  //           ...data,
+  //           name,
+  //         });
+  //       }
+  //       reviewList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  //       setEngineerReview(reviewList);
+  //     } catch (error) {
+  //       console.error('Error fetching details:', error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   fetchUserAndTicketData();
+  // }, [ticketId]);
+
   useEffect(() => {
     if (!ticketId) return;
 
     const notesQuery = query(
       collection(db, 'ticket-notes'),
-      where('ticketId', '==', ticketId)
+      where('ticketId', '==', ticketId),
     );
 
-    const unsubscribe = onSnapshot(notesQuery, (snapshot) => {
-      const notes = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      // Manually sort by createdAt in descending order
-      notes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setTicketNotes(notes);
-    }, (error) => {
-      console.error('Error fetching notes:', error);
-    });
+    const unsubscribe = onSnapshot(
+      notesQuery,
+      snapshot => {
+        const notes = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        // Manually sort by createdAt in descending order
+        notes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setTicketNotes(notes);
+      },
+      error => {
+        console.error('Error fetching notes:', error);
+      },
+    );
 
     return () => unsubscribe();
   }, [ticketId]);
@@ -980,6 +1153,18 @@ export default function TicketDetailsScreen({ route }) {
       if (field === 'priority') {
         setPriorityValue(value);
       } else if (field === 'status') {
+        await sendTicketOpenNotification(
+          {
+            customerName: ticket.customerName,
+            message: templateNameByStatus[value],
+            modelNumber: ticket.modelId,
+            serialNumber: ticket.serialNumber,
+            ticketId: ticket.ticketId,
+            number: `91${ticket.customerPhone}`,
+            link: 'Login to the app to leave us a feedback for your complain',
+          },
+          value,
+        );
         setStatusValue(value);
       }
     } catch (error) {
@@ -1063,7 +1248,9 @@ export default function TicketDetailsScreen({ route }) {
       await addDoc(collection(db, 'ticket-notes'), newNote);
     } catch (error) {
       console.error('Error adding note:', error.message);
-      setTicketNotes(prev => prev.filter(note => note.id !== `temp-${Date.now()}`));
+      setTicketNotes(prev =>
+        prev.filter(note => note.id !== `temp-${Date.now()}`),
+      );
       Alert.alert('Error', 'Failed to add note. Please try again.');
     } finally {
       setSendingNote(false);
@@ -1092,7 +1279,8 @@ export default function TicketDetailsScreen({ route }) {
         <View style={styles.card}>
           <Text style={styles.title}>{ticket.title || 'Untitled Ticket'}</Text>
           <Text style={styles.subtitle}>
-            Created At: {moment(ticket.createdAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+            Created At:{' '}
+            {moment(ticket.createdAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
           </Text>
           <Text style={styles.description}>
             {ticket.description || 'No description available.'}
@@ -1100,6 +1288,7 @@ export default function TicketDetailsScreen({ route }) {
         </View>
       );
     }
+
     if (item.type === 'complaint') {
       return (
         <View style={styles.card}>
@@ -1110,7 +1299,9 @@ export default function TicketDetailsScreen({ route }) {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.label}>Complainant Phone:</Text>
-            <Text style={styles.value}>{ticket.complainee_number || 'N/A'}</Text>
+            <Text style={styles.value}>
+              {ticket.complainee_number || 'N/A'}
+            </Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.label}>Ticket Creation:</Text>
@@ -1128,14 +1319,19 @@ export default function TicketDetailsScreen({ route }) {
             <Text style={styles.label}>Category:</Text>
             <Text style={styles.value}>{ticket.category || 'N/A'}</Text>
           </View>
-          <View style={styles.detailRow}>
+          <View
+            style={[styles.detailRow, { zIndex: priorityOpen ? 3000 : 1000 }]}
+          >
             <Text style={styles.label}>Priority:</Text>
-            <View style={[styles.dropdownContainer, { zIndex: 1000 }]}>
+            <View style={styles.dropdownContainer}>
               <DropDownPicker
                 open={priorityOpen}
                 value={priorityValue}
                 items={priorityItems}
-                setOpen={setPriorityOpen}
+                setOpen={open => {
+                  setPriorityOpen(open);
+                  if (open) setStatusOpen(false);
+                }}
                 setValue={callback => {
                   const newValue = callback(priorityValue);
                   setPriorityValue(newValue);
@@ -1147,17 +1343,30 @@ export default function TicketDetailsScreen({ route }) {
                 dropDownContainerStyle={styles.dropdownList}
                 placeholderStyle={styles.placeholder}
                 textStyle={styles.dropdownText}
+                zIndex={priorityOpen ? 3000 : 1000}
+                zIndexInverse={statusOpen ? 2000 : 1000}
+                closeAfterSelecting={true}
+                closeOnBackPressed={true}
+                onPress={() => {
+                  setPriorityOpen(!priorityOpen);
+                  setStatusOpen(false);
+                }}
               />
             </View>
           </View>
-          <View style={styles.detailRow}>
+          <View
+            style={[styles.detailRow, { zIndex: statusOpen ? 2000 : 1000 }]}
+          >
             <Text style={styles.label}>Status:</Text>
-            <View style={[styles.dropdownContainer, { zIndex: 1000 }]}>
+            <View style={styles.dropdownContainer}>
               <DropDownPicker
                 open={statusOpen}
                 value={statusValue}
                 items={statusItems}
-                setOpen={setStatusOpen}
+                setOpen={open => {
+                  setStatusOpen(open);
+                  if (open) setPriorityOpen(false);
+                }}
                 setValue={callback => {
                   const newValue = callback(statusValue);
                   setStatusValue(newValue);
@@ -1169,19 +1378,112 @@ export default function TicketDetailsScreen({ route }) {
                 dropDownContainerStyle={styles.dropdownList}
                 placeholderStyle={styles.placeholder}
                 textStyle={styles.dropdownText}
+                zIndex={statusOpen ? 2000 : 1000} // Dynamic zIndex
+                zIndexInverse={priorityOpen ? 3000 : 1000} //
+                closeAfterSelecting={true}
+                closeOnBackPressed={true}
+                onPress={() => {
+                  setStatusOpen(!statusOpen);
+                  setPriorityOpen(false);
+                }}
               />
             </View>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.label}>Address:</Text>
             <Text style={styles.value}>
-              {ticket.complainee_address_1 || 'N/A'}, {ticket.complainee_city || 'N/A'},{' '}
-              {ticket.complainee_state || 'N/A'}, {ticket.complainee_pincode || 'N/A'}
+              {ticket.complainee_address_1 || 'N/A'},{' '}
+              {ticket.complainee_city || 'N/A'},{' '}
+              {ticket.complainee_state || 'N/A'},{' '}
+              {ticket.complainee_pincode || 'N/A'}
             </Text>
           </View>
         </View>
       );
     }
+
+    // if (item.type === 'complaint') {
+    //   return (
+    //     <View style={styles.card}>
+    //       <Text style={styles.sectionTitle}>Complaint Details</Text>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Complainant Name:</Text>
+    //         <Text style={styles.value}>{ticket.complainee_name || 'N/A'}</Text>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Complainant Phone:</Text>
+    //         <Text style={styles.value}>{ticket.complainee_number || 'N/A'}</Text>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Ticket Creation:</Text>
+    //         <Text style={styles.value}>
+    //           {moment(ticket.createdAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+    //         </Text>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Last Activity:</Text>
+    //         <Text style={styles.value}>
+    //           {moment(ticket.updatedAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+    //         </Text>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Category:</Text>
+    //         <Text style={styles.value}>{ticket.category || 'N/A'}</Text>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Priority:</Text>
+    //         <View style={[styles.dropdownContainer, { zIndex: 1000 }]}>
+    //           <DropDownPicker
+    //             open={priorityOpen}
+    //             value={priorityValue}
+    //             items={priorityItems}
+    //             setOpen={setPriorityOpen}
+    //             setValue={callback => {
+    //               const newValue = callback(priorityValue);
+    //               setPriorityValue(newValue);
+    //               updateField('priority', newValue);
+    //             }}
+    //             setItems={setPriorityItems}
+    //             placeholder="Select Priority"
+    //             style={styles.dropdown}
+    //             dropDownContainerStyle={styles.dropdownList}
+    //             placeholderStyle={styles.placeholder}
+    //             textStyle={styles.dropdownText}
+    //           />
+    //         </View>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Status:</Text>
+    //         <View style={[styles.dropdownContainer, { zIndex: 1000 }]}>
+    //           <DropDownPicker
+    //             open={statusOpen}
+    //             value={statusValue}
+    //             items={statusItems}
+    //             setOpen={setStatusOpen}
+    //             setValue={callback => {
+    //               const newValue = callback(statusValue);
+    //               setStatusValue(newValue);
+    //               updateField('status', newValue);
+    //             }}
+    //             setItems={setStatusItems}
+    //             placeholder="Select Status"
+    //             style={styles.dropdown}
+    //             dropDownContainerStyle={styles.dropdownList}
+    //             placeholderStyle={styles.placeholder}
+    //             textStyle={styles.dropdownText}
+    //           />
+    //         </View>
+    //       </View>
+    //       <View style={styles.detailRow}>
+    //         <Text style={styles.label}>Address:</Text>
+    //         <Text style={styles.value}>
+    //           {ticket.complainee_address_1 || 'N/A'}, {ticket.complainee_city || 'N/A'},{' '}
+    //           {ticket.complainee_state || 'N/A'}, {ticket.complainee_pincode || 'N/A'}
+    //         </Text>
+    //       </View>
+    //     </View>
+    //   );
+    // }
     if (item.type === 'associated') {
       return (
         <View style={styles.card}>
@@ -1190,33 +1492,47 @@ export default function TicketDetailsScreen({ route }) {
             <>
               <View style={styles.detailRow}>
                 <Text style={styles.label}>Customer Name:</Text>
-                <Text style={styles.value}>{associatedData.customerName || 'N/A'}</Text>
+                <Text style={styles.value}>
+                  {associatedData.customerName || 'N/A'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.label}>Customer Phone:</Text>
-                <Text style={styles.value}>{associatedData.mobileNumber || 'N/A'}</Text>
+                <Text style={styles.value}>
+                  {associatedData.mobileNumber || 'N/A'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.label}>Model Number:</Text>
-                <Text style={styles.value}>{associatedData.modelNumber || 'N/A'}</Text>
+                <Text style={styles.value}>
+                  {associatedData.modelNumber || 'N/A'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.label}>Serial Number:</Text>
-                <Text style={styles.value}>{associatedData.serialNumber || 'N/A'}</Text>
+                <Text style={styles.value}>
+                  {associatedData.serialNumber || 'N/A'}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.label}>Registration Date:</Text>
                 <Text style={styles.value}>
-                  {moment(associatedData.registeredAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+                  {moment(associatedData.registeredAt).format(
+                    'DD MMM YYYY hh:mm A',
+                  ) || 'N/A'}
                 </Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.label}>Warranty Period:</Text>
-                <Text style={styles.value}>{associatedData.warrantyPeriod || 'N/A'}</Text>
+                <Text style={styles.value}>
+                  {associatedData.warrantyPeriod || 'N/A'}
+                </Text>
               </View>
             </>
           ) : (
-            <Text style={styles.noDataText}>No associated product details found.</Text>
+            <Text style={styles.noDataText}>
+              No associated product details found.
+            </Text>
           )}
         </View>
       );
@@ -1233,10 +1549,13 @@ export default function TicketDetailsScreen({ route }) {
             {ticket.replies && ticket.replies.length > 0 ? (
               ticket.replies.map((reply, index) => (
                 <View key={index} style={styles.replyBubble}>
-                  <Text style={styles.replyFrom}>{reply.from || 'Unknown'}:</Text>
+                  <Text style={styles.replyFrom}>
+                    {reply.from || 'Unknown'}:
+                  </Text>
                   <Text style={styles.replyMessage}>{reply.message || ''}</Text>
                   <Text style={styles.replyTimestamp}>
-                    {moment(reply.timestamp).format('DD MMM YYYY hh:mm A') || ''}
+                    {moment(reply.timestamp).format('DD MMM YYYY hh:mm A') ||
+                      ''}
                   </Text>
                 </View>
               ))
@@ -1267,7 +1586,11 @@ export default function TicketDetailsScreen({ route }) {
         </View>
       );
     }
-    if (item.type === 'submitReview' && currentUserId === ticket.engineerId && engineer) {
+    if (
+      item.type === 'submitReview' &&
+      currentUserId === ticket.engineerId &&
+      engineer
+    ) {
       return (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Submit Review</Text>
@@ -1299,7 +1622,9 @@ export default function TicketDetailsScreen({ route }) {
                 <View style={styles.reviewHeader}>
                   <Text style={styles.engineerName}>{review.name}</Text>
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{review.status || 'N/A'}</Text>
+                    <Text style={styles.badgeText}>
+                      {review.status || 'N/A'}
+                    </Text>
                   </View>
                   <Text style={styles.reviewDate}>
                     {moment(review.createdAt).format('DD MMM YYYY hh:mm A')}
@@ -1307,11 +1632,15 @@ export default function TicketDetailsScreen({ route }) {
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.label}>Backup HRD Test:</Text>
-                  <Text style={styles.value}>{review.backup_hrd_test || 'N/A'}</Text>
+                  <Text style={styles.value}>
+                    {review.backup_hrd_test || 'N/A'}
+                  </Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.label}>Faulty Cell Fault Observed:</Text>
-                  <Text style={styles.value}>{review.faulty_cell_fault_observe || 'N/A'}</Text>
+                  <Text style={styles.value}>
+                    {review.faulty_cell_fault_observe || 'N/A'}
+                  </Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.label}>Remarks:</Text>
@@ -1320,10 +1649,14 @@ export default function TicketDetailsScreen({ route }) {
                 <View style={styles.detailRow}>
                   <Text style={styles.label}>Battery Status:</Text>
                   <View style={[styles.badge, { alignSelf: 'flex-start' }]}>
-                    <Text style={styles.badgeText}>{review.battery_status || 'N/A'}</Text>
+                    <Text style={styles.badgeText}>
+                      {review.battery_status || 'N/A'}
+                    </Text>
                   </View>
                 </View>
-                {index < engineerReview.length - 1 && <View style={styles.separator} />}
+                {index < engineerReview.length - 1 && (
+                  <View style={styles.separator} />
+                )}
               </View>
             ))}
           </ScrollView>
@@ -1386,9 +1719,13 @@ export default function TicketDetailsScreen({ route }) {
               <Text style={styles.label}>
                 {entry.userName}{' '}
                 {entry.roleName === 'Service Engineer' ? (
-                  <Text style={[styles.roleBadge, styles.engineerBadge]}>{entry.roleName}</Text>
+                  <Text style={[styles.roleBadge, styles.engineerBadge]}>
+                    {entry.roleName}
+                  </Text>
                 ) : (
-                  <Text style={[styles.roleBadge, styles.staffBadge]}>{entry.roleName}</Text>
+                  <Text style={[styles.roleBadge, styles.staffBadge]}>
+                    {entry.roleName}
+                  </Text>
                 )}
               </Text>
               <Text style={styles.value}>
@@ -1407,10 +1744,16 @@ export default function TicketDetailsScreen({ route }) {
     { type: 'complaint', key: 'complaint' },
     { type: 'associated', key: 'associated' },
     { type: 'conversations', key: 'conversations' },
-    ...(currentUserId === ticket.engineerId && engineer ? [{ type: 'submitReview', key: 'submitReview' }] : []),
-    ...(engineerReview.length > 0 ? [{ type: 'engineerReview', key: 'engineerReview' }] : []),
+    ...(currentUserId === ticket.engineerId && engineer
+      ? [{ type: 'submitReview', key: 'submitReview' }]
+      : []),
+    ...(engineerReview.length > 0
+      ? [{ type: 'engineerReview', key: 'engineerReview' }]
+      : []),
     { type: 'ticketNotes', key: 'ticketNotes' },
-    ...(assignmentHistory.length > 0 ? [{ type: 'assignmentHistory', key: 'assignmentHistory' }] : []),
+    ...(assignmentHistory.length > 0
+      ? [{ type: 'assignmentHistory', key: 'assignmentHistory' }]
+      : []),
   ];
 
   return (
@@ -1507,16 +1850,20 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     flex: 1,
+    marginVertical: 8,
   },
   dropdown: {
     borderColor: '#e5e7eb',
     borderRadius: 8,
     backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   dropdownList: {
     borderColor: '#e5e7eb',
     borderRadius: 8,
-    zIndex: 2000, // Increased zIndex to ensure dropdown appears above other elements
+    backgroundColor: '#ffffff',
+    marginTop: 2,
   },
   placeholder: {
     color: '#9ca3af',
@@ -1682,3 +2029,1053 @@ const styles = StyleSheet.create({
     height: 12,
   },
 });
+
+
+
+
+
+
+// import React, { useEffect, useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   FlatList,
+//   ActivityIndicator,
+//   TouchableOpacity,
+//   StyleSheet,
+//   ScrollView,
+//   Alert,
+// } from 'react-native';
+// import { getAuth } from 'firebase/auth';
+// import {
+//   doc,
+//   getDoc,
+//   updateDoc,
+//   arrayUnion,
+//   addDoc,
+//   collection,
+//   query,
+//   where,
+//   getDocs,
+//   onSnapshot,
+//   orderBy,
+// } from 'firebase/firestore';
+// import { TextInput } from 'react-native-gesture-handler';
+// import { db } from '../../../firebase';
+// import moment from 'moment';
+// import { useNavigation } from '@react-navigation/native';
+// import DropDownPicker from 'react-native-dropdown-picker';
+// import { API_KEY } from '@env';
+
+// export default function TicketDetailsScreen({ route }) {
+//   const ticketId = route?.params?.ticketId;
+//   const [ticket, setTicket] = useState(null);
+//   const [associatedData, setAssociatedData] = useState(null);
+//   const [loading, setLoading] = useState(true);
+//   const [replyText, setReplyText] = useState('');
+//   const [sendingReply, setSendingReply] = useState(false);
+//   const [engineer, setEngineer] = useState(null);
+//   const [currentUserId, setCurrentUserId] = useState(null);
+//   const [noteText, setNoteText] = useState('');
+//   const [sendingNote, setSendingNote] = useState(false);
+//   const [ticketNotes, setTicketNotes] = useState([]);
+//   const [assignmentHistory, setAssignmentHistory] = useState([]);
+//   const [engineerReview, setEngineerReview] = useState([]);
+//   const navigation = useNavigation();
+
+//   const [priorityOpen, setPriorityOpen] = useState(false);
+//   const [priorityValue, setPriorityValue] = useState(null);
+//   const [priorityItems, setPriorityItems] = useState([
+//     { label: 'Low', value: 'LOW' },
+//     { label: 'Medium', value: 'MEDIUM' },
+//     { label: 'High', value: 'HIGH' },
+//     { label: 'Urgent', value: 'URGENT' },
+//   ]);
+
+//   const [statusOpen, setStatusOpen] = useState(false);
+//   const [statusValue, setStatusValue] = useState(null);
+//   const [statusItems, setStatusItems] = useState([
+//     { label: 'OPEN', value: 'OPEN' },
+//     { label: 'IN PROGRESS', value: 'IN_PROGRESS' },
+//     { label: 'CLOSED', value: 'CLOSED' },
+//   ]);
+
+//   const templateNameByStatus = {
+//     OPEN: 'ticket open',
+//     IN_PROGRESS: 'ticket inprogress',
+//     CLOSED: 'ticket closereview',
+//   };
+
+//   const sendTicketOpenNotification = async (options, status) => {
+//     try {
+//       let link = `${API_KEY}?number=${options.number}&message=${
+//         options.message
+//       }&customerName=${options.customerName}&ticketId=${
+//         options.ticketId
+//       }&serialNumber=${options.serialNumber}&modelNumber=${options.modelNumber}`;
+//       if (status === 'CLOSED') {
+//         link += `&link=${options?.link}`;
+//       }
+//       const response = await fetch(link, {
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//       });
+//       if (!response.ok) {
+//         throw new Error('Failed to send notification');
+//       }
+//     } catch (error) {
+//       console.error('Error sending notification:', error);
+//       Alert.alert('Error', 'Failed to send notification. Please try again.');
+//     }
+//   };
+
+//   useEffect(() => {
+//     let isMounted = true;
+
+//     const fetchUserAndTicketData = () => {
+//       setLoading(true);
+//       const auth = getAuth();
+//       const currentUser = auth.currentUser;
+//       if (currentUser) {
+//         setCurrentUserId(currentUser.uid);
+//       }
+
+//       const ticketRef = doc(db, 'tickets', ticketId);
+//       const unsubscribe = onSnapshot(
+//         ticketRef,
+//         async ticketSnap => {
+//           if (!isMounted) return;
+
+//           if (!ticketSnap.exists()) {
+//             console.error('Ticket not found');
+//             setTicket(null);
+//             Alert.alert('Error', 'Ticket not found.');
+//             setLoading(false);
+//             return;
+//           }
+
+//           const ticketData = { id: ticketSnap.id, ...ticketSnap.data() };
+//           setTicket(ticketData);
+//           setPriorityValue(ticketData.priority || null);
+//           setStatusValue(ticketData.status || null);
+
+//           // Fetch associated product data
+//           const key = `${ticketData.modelId}_${ticketData.serialNumber}`;
+//           const productRef = doc(db, 'products', key);
+//           const productSnap = await getDoc(productRef);
+//           if (isMounted && productSnap.exists()) {
+//             setAssociatedData({
+//               id: productSnap.id,
+//               ...productSnap.data(),
+//             });
+//           }
+
+//           // Fetch engineer data
+//           if (ticketData.engineerId) {
+//             const engineerRef = doc(db, 'users', ticketData.engineerId);
+//             const engineerSnap = await getDoc(engineerRef);
+//             if (isMounted && engineerSnap.exists()) {
+//               setEngineer({
+//                 name: engineerSnap.data().displayName || 'N/A',
+//                 phone: engineerSnap.data().phone || 'N/A',
+//               });
+//             }
+//           }
+
+//           // Fetch assignment history
+//           const assignmentQuery = query(
+//             collection(db, 'ticket-assignments'),
+//             where('ticketId', '==', ticketId),
+//             orderBy('createdAt', 'desc'),
+//           );
+//           const assignmentSnap = await getDocs(assignmentQuery);
+//           const assignments = [];
+//           for (const docSnap of assignmentSnap.docs) {
+//             const data = docSnap.data();
+//             const userRef = doc(db, 'users', data.userId);
+//             const userSnap = await getDoc(userRef);
+//             if (!isMounted) break;
+//             const userName = userSnap.exists()
+//               ? userSnap.data().displayName || 'N/A'
+//               : 'N/A';
+//             assignments.push({
+//               id: docSnap.id,
+//               userName,
+//               roleName: data.roleName,
+//               createdAt: data.createdAt,
+//             });
+//           }
+//           if (isMounted) {
+//             setAssignmentHistory(assignments);
+//           }
+
+//           // Fetch engineer reviews
+//           const reviewsQuery = query(
+//             collection(db, 'ticket-staff-review'),
+//             where('ticketId', '==', ticketId),
+//             orderBy('createdAt', 'desc'),
+//           );
+//           const reviewsSnap = await getDocs(reviewsQuery);
+//           const reviewList = [];
+//           for (const docSnap of reviewsSnap.docs) {
+//             const data = docSnap.data();
+//             const userRef = doc(db, 'users', data.userId);
+//             const userSnap = await getDoc(userRef);
+//             if (!isMounted) break;
+//             const name = userSnap.exists()
+//               ? userSnap.data().displayName || 'N/A'
+//               : 'N/A';
+//             reviewList.push({
+//               id: docSnap.id,
+//               ...data,
+//               name,
+//             });
+//           }
+//           if (isMounted) {
+//             setEngineerReview(reviewList);
+//           }
+
+//           setLoading(false);
+//         },
+//         error => {
+//           console.error('Error fetching ticket:', error);
+//           if (isMounted) {
+//             setTicket(null);
+//             Alert.alert('Error', 'Failed to fetch ticket details.');
+//             setLoading(false);
+//           }
+//         },
+//       );
+
+//       return () => {
+//         isMounted = false;
+//         unsubscribe();
+//       };
+//     };
+
+//     fetchUserAndTicketData();
+//   }, [ticketId]);
+
+//   useEffect(() => {
+//     if (!ticketId) return;
+
+//     const notesQuery = query(
+//       collection(db, 'ticket-notes'),
+//       where('ticketId', '==', ticketId),
+//       orderBy('createdAt', 'desc'),
+//     );
+
+//     const unsubscribe = onSnapshot(
+//       notesQuery,
+//       snapshot => {
+//         const notes = snapshot.docs.map(doc => ({
+//           id: doc.id,
+//           ...doc.data(),
+//         }));
+//         setTicketNotes(notes);
+//       },
+//       error => {
+//         console.error('Error fetching notes:', error);
+//         Alert.alert('Error', 'Failed to fetch ticket notes.');
+//       },
+//     );
+
+//     return () => unsubscribe();
+//   }, [ticketId]);
+
+//   const updateField = async (field, value) => {
+//     try {
+//       const ticketRef = doc(db, 'tickets', ticketId);
+//       await updateDoc(ticketRef, {
+//         [field]: value,
+//         updatedAt: new Date().toISOString(),
+//       });
+
+//       setTicket(prev => ({
+//         ...prev,
+//         [field]: value,
+//         updatedAt: new Date().toISOString(),
+//       }));
+
+//       if (field === 'priority') {
+//         setPriorityValue(value);
+//       } else if (field === 'status') {
+//         await sendTicketOpenNotification(
+//           {
+//             customerName: ticket.customerName,
+//             message: templateNameByStatus[value],
+//             modelNumber: ticket.modelId,
+//             serialNumber: ticket.serialNumber,
+//             ticketId: ticket.ticketId,
+//             number: `91${ticket.customerPhone}`,
+//             link: 'Login to the app to leave us a feedback for your complain',
+//           },
+//           value,
+//         );
+//         setStatusValue(value);
+//       }
+//     } catch (error) {
+//       console.error(`Failed to update ${field}:`, error);
+//       Alert.alert('Error', `Failed to update ${field}. Please try again.`);
+//     }
+//   };
+
+//   const handleSendReply = async () => {
+//     if (!replyText.trim()) return;
+//     setSendingReply(true);
+//     try {
+//       const engineerDocRef = doc(db, 'users', ticket.engineerId);
+//       const engineerSnap = await getDoc(engineerDocRef);
+
+//       let engineerName = 'Engineer';
+//       if (engineerSnap.exists()) {
+//         engineerName = engineerSnap.data().displayName || 'Engineer';
+//       }
+
+//       const ticketRef = doc(db, 'tickets', ticketId);
+//       await updateDoc(ticketRef, {
+//         replies: arrayUnion({
+//           from: engineerName,
+//           message: replyText,
+//           timestamp: new Date().toISOString(),
+//         }),
+//       });
+
+//       setReplyText('');
+//     } catch (error) {
+//       console.error('Error sending reply:', error);
+//       Alert.alert('Error', 'Failed to send reply. Please try again.');
+//     } finally {
+//       setSendingReply(false);
+//     }
+//   };
+
+//   const handleSubmitReview = () => {
+//     navigation.navigate('SubmitReviewForm', {
+//       ticketId,
+//       engineerName: engineer?.name,
+//       engineerPhone: engineer?.phone,
+//     });
+//   };
+
+//   const handleAddNoteToCollection = async () => {
+//     if (!noteText.trim()) return;
+//     setSendingNote(true);
+
+//     try {
+//       const auth = getAuth();
+//       const currentUser = auth.currentUser;
+//       if (!currentUser) throw new Error('No logged-in user found');
+
+//       const userRef = doc(db, 'users', currentUser.uid);
+//       const userSnap = await getDoc(userRef);
+//       if (!userSnap.exists()) throw new Error('User not found');
+//       const userData = userSnap.data();
+
+//       let roleName = 'UNKNOWN';
+//       if (userData.role) {
+//         const roleRef = doc(db, 'roles', userData.role);
+//         const roleSnap = await getDoc(roleRef);
+//         if (roleSnap.exists()) {
+//           roleName = roleSnap.data().roleName || 'UNKNOWN';
+//         }
+//       }
+
+//       const newNote = {
+//         createdAt: new Date().toISOString(),
+//         noteMsg: noteText.trim(),
+//         roleName: roleName,
+//         ticketId: ticketId,
+//         userId: currentUser.uid,
+//         userName: userData.displayName || 'Unknown',
+//       };
+
+//       await addDoc(collection(db, 'ticket-notes'), newNote);
+//       setNoteText('');
+//     } catch (error) {
+//       console.error('Error adding note:', error.message);
+//       Alert.alert('Error', 'Failed to add note. Please try again.');
+//     } finally {
+//       setSendingNote(false);
+//     }
+//   };
+
+//   if (loading) {
+//     return (
+//       <View style={styles.center}>
+//         <ActivityIndicator size="large" color="#2563eb" />
+//       </View>
+//     );
+//   }
+
+//   if (!ticket) {
+//     return (
+//       <View style={styles.center}>
+//         <Text style={styles.errorText}>Ticket not found.</Text>
+//       </View>
+//     );
+//   }
+
+//   const renderItem = ({ item }) => {
+//     if (item.type === 'ticket') {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.title}>{ticket.title || 'Untitled Ticket'}</Text>
+//           <Text style={styles.subtitle}>
+//             Created At:{' '}
+//             {moment(ticket.createdAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+//           </Text>
+//           <Text style={styles.description}>
+//             {ticket.description || 'No description available.'}
+//           </Text>
+//         </View>
+//       );
+//     }
+
+//     if (item.type === 'complaint') {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Complaint Details</Text>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Complainant Name:</Text>
+//             <Text style={styles.value}>{ticket.complainee_name || 'N/A'}</Text>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Complainant Phone:</Text>
+//             <Text style={styles.value}>
+//               {ticket.complainee_number || 'N/A'}
+//             </Text>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Ticket Creation:</Text>
+//             <Text style={styles.value}>
+//               {moment(ticket.createdAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+//             </Text>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Last Activity:</Text>
+//             <Text style={styles.value}>
+//               {moment(ticket.updatedAt).format('DD MMM YYYY hh:mm A') || 'N/A'}
+//             </Text>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Category:</Text>
+//             <Text style={styles.value}>{ticket.category || 'N/A'}</Text>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Priority:</Text>
+//             <View style={styles.dropdownContainer}>
+//               <DropDownPicker
+//                 open={priorityOpen}
+//                 value={priorityValue}
+//                 items={priorityItems}
+//                 setOpen={open => {
+//                   setPriorityOpen(open);
+//                   if (open) setStatusOpen(false);
+//                 }}
+//                 setValue={callback => {
+//                   const newValue = callback(priorityValue);
+//                   setPriorityValue(newValue);
+//                   updateField('priority', newValue);
+//                 }}
+//                 setItems={setPriorityItems}
+//                 placeholder="Select Priority"
+//                 style={styles.dropdown}
+//                 dropDownContainerStyle={styles.dropdownList}
+//                 placeholderStyle={styles.placeholder}
+//                 textStyle={styles.dropdownText}
+//                 zIndex={3000}
+//                 zIndexInverse={1000}
+//                 closeAfterSelecting={true}
+//                 closeOnBackPressed={true}
+//               />
+//             </View>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Status:</Text>
+//             <View style={styles.dropdownContainer}>
+//               <DropDownPicker
+//                 open={statusOpen}
+//                 value={statusValue}
+//                 items={statusItems}
+//                 setOpen={open => {
+//                   setStatusOpen(open);
+//                   if (open) setPriorityOpen(false);
+//                 }}
+//                 setValue={callback => {
+//                   const newValue = callback(statusValue);
+//                   setStatusValue(newValue);
+//                   updateField('status', newValue);
+//                 }}
+//                 setItems={setStatusItems}
+//                 placeholder="Select Status"
+//                 style={styles.dropdown}
+//                 dropDownContainerStyle={styles.dropdownList}
+//                 placeholderStyle={styles.placeholder}
+//                 textStyle={styles.dropdownText}
+//                 zIndex={2000}
+//                 zIndexInverse={1000}
+//                 closeAfterSelecting={true}
+//                 closeOnBackPressed={true}
+//               />
+//             </View>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Address:</Text>
+//             <Text style={styles.value}>
+//               {ticket.complainee_address_1 || 'N/A'},{' '}
+//               {ticket.complainee_city || 'N/A'},{' '}
+//               {ticket.complainee_state || 'N/A'},{' '}
+//               {ticket.complainee_pincode || 'N/A'}
+//             </Text>
+//           </View>
+//         </View>
+//       );
+//     }
+
+//     if (item.type === 'associated') {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Associated Details</Text>
+//           {associatedData ? (
+//             <>
+//               <View style={styles.detailRow}>
+//                 <Text style={styles.label}>Customer Name:</Text>
+//                 <Text style={styles.value}>
+//                   {associatedData.customerName || 'N/A'}
+//                 </Text>
+//               </View>
+//               <View style={styles.detailRow}>
+//                 <Text style={styles.label}>Customer Phone:</Text>
+//                 <Text style={styles.value}>
+//                   {associatedData.mobileNumber || 'N/A'}
+//                 </Text>
+//               </View>
+//               <View style={styles.detailRow}>
+//                 <Text style={styles.label}>Model Number:</Text>
+//                 <Text style={styles.value}>
+//                   {associatedData.modelNumber || 'N/A'}
+//                 </Text>
+//               </View>
+//               <View style={styles.detailRow}>
+//                 <Text style={styles.label}>Serial Number:</Text>
+//                 <Text style={styles.value}>
+//                   {associatedData.serialNumber || 'N/A'}
+//                 </Text>
+//               </View>
+//               <View style={styles.detailRow}>
+//                 <Text style={styles.label}>Registration Date:</Text>
+//                 <Text style={styles.value}>
+//                   {moment(associatedData.registeredAt).format(
+//                     'DD MMM YYYY hh:mm A',
+//                   ) || 'N/A'}
+//                 </Text>
+//               </View>
+//               <View style={styles.detailRow}>
+//                 <Text style={styles.label}>Warranty Period:</Text>
+//                 <Text style={styles.value}>
+//                   {associatedData.warrantyPeriod || 'N/A'}
+//                 </Text>
+//               </View>
+//             </>
+//           ) : (
+//             <Text style={styles.noDataText}>
+//               No associated product details found.
+//             </Text>
+//           )}
+//         </View>
+//       );
+//     }
+
+//     if (item.type === 'conversations') {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Conversations</Text>
+//           <ScrollView
+//             nestedScrollEnabled
+//             style={styles.scrollableSection}
+//             showsVerticalScrollIndicator={false}
+//           >
+//             {ticket.replies && ticket.replies.length > 0 ? (
+//               ticket.replies.map((reply, index) => (
+//                 <View key={index} style={styles.replyBubble}>
+//                   <Text style={styles.replyFrom}>
+//                     {reply.from || 'Unknown'}:
+//                   </Text>
+//                   <Text style={styles.replyMessage}>{reply.message || ''}</Text>
+//                   <Text style={styles.replyTimestamp}>
+//                     {moment(reply.timestamp).format('DD MMM YYYY hh:mm A') ||
+//                       ''}
+//                   </Text>
+//                 </View>
+//               ))
+//             ) : (
+//               <Text style={styles.noDataText}>No replies yet.</Text>
+//             )}
+//           </ScrollView>
+//           <View style={styles.inputRow}>
+//             <Text style={styles.labelFull}>Reply:</Text>
+//             <TextInput
+//               style={styles.textInput}
+//               value={replyText}
+//               onChangeText={setReplyText}
+//               placeholder="Type your reply..."
+//               editable={!sendingReply}
+//               multiline
+//             />
+//           </View>
+//           <TouchableOpacity
+//             style={[styles.button, sendingReply && styles.buttonDisabled]}
+//             onPress={handleSendReply}
+//             disabled={sendingReply}
+//           >
+//             <Text style={styles.buttonText}>
+//               {sendingReply ? 'Sending...' : 'Send Reply'}
+//             </Text>
+//           </TouchableOpacity>
+//         </View>
+//       );
+//     }
+
+//     if (
+//       item.type === 'submitReview' &&
+//       currentUserId === ticket.engineerId &&
+//       engineer
+//     ) {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Submit Review</Text>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Service Engineer:</Text>
+//             <Text style={styles.value}>{engineer.name}</Text>
+//           </View>
+//           <View style={styles.detailRow}>
+//             <Text style={styles.label}>Phone:</Text>
+//             <Text style={styles.value}>{engineer.phone}</Text>
+//           </View>
+//           <TouchableOpacity style={styles.button} onPress={handleSubmitReview}>
+//             <Text style={styles.buttonText}>Submit Review</Text>
+//           </TouchableOpacity>
+//         </View>
+//       );
+//     }
+
+//     if (item.type === 'engineerReview' && engineerReview.length > 0) {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Service Engineer Review</Text>
+//           <ScrollView
+//             nestedScrollEnabled
+//             style={styles.scrollableSection}
+//             showsVerticalScrollIndicator={false}
+//           >
+//             {engineerReview.map((review, index) => (
+//               <View key={review.id || index} style={styles.reviewBlock}>
+//                 <View style={styles.reviewHeader}>
+//                   <Text style={styles.engineerName}>{review.name}</Text>
+//                   <View style={styles.badge}>
+//                     <Text style={styles.badgeText}>
+//                       {review.status || 'N/A'}
+//                     </Text>
+//                   </View>
+//                   <Text style={styles.reviewDate}>
+//                     {moment(review.createdAt).format('DD MMM YYYY hh:mm A')}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.detailRow}>
+//                   <Text style={styles.label}>Backup HRD Test:</Text>
+//                   <Text style={styles.value}>
+//                     {review.backup_hrd_test || 'N/A'}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.detailRow}>
+//                   <Text style={styles.label}>Faulty Cell Fault Observed:</Text>
+//                   <Text style={styles.value}>
+//                     {review.faulty_cell_fault_observe || 'N/A'}
+//                   </Text>
+//                 </View>
+//                 <View style={styles.detailRow}>
+//                   <Text style={styles.label}>Remarks:</Text>
+//                   <Text style={styles.value}>{review.remarks || 'N/A'}</Text>
+//                 </View>
+//                 <View style={styles.detailRow}>
+//                   <Text style={styles.label}>Battery Status:</Text>
+//                   <View style={[styles.badge, { alignSelf: 'flex-start' }]}>
+//                     <Text style={styles.badgeText}>
+//                       {review.battery_status || 'N/A'}
+//                     </Text>
+//                   </View>
+//                 </View>
+//                 {index < engineerReview.length - 1 && (
+//                   <View style={styles.separator} />
+//                 )}
+//               </View>
+//             ))}
+//           </ScrollView>
+//         </View>
+//       );
+//     }
+
+//     if (item.type === 'ticketNotes') {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Ticket Notes</Text>
+//           {ticketNotes.length === 0 ? (
+//             <Text style={styles.noDataText}>No notes added yet.</Text>
+//           ) : (
+//             ticketNotes.map(note => (
+//               <View key={note.id} style={styles.noteCard}>
+//                 <View style={styles.noteHeader}>
+//                   <Text style={styles.noteUser}>{note.userName}</Text>
+//                   <Text style={styles.noteRole}>{note.roleName}</Text>
+//                   <Text style={styles.noteTime}>
+//                     {moment(note.createdAt).format('DD-MMM-YYYY hh:mm A')}
+//                   </Text>
+//                 </View>
+//                 <Text style={styles.noteMessage}>{note.noteMsg}</Text>
+//               </View>
+//             ))
+//           )}
+//           <View style={styles.inputRow}>
+//             <Text style={styles.labelFull}>Note:</Text>
+//             <TextInput
+//               style={styles.textInput}
+//               value={noteText}
+//               onChangeText={setNoteText}
+//               placeholder="Enter your note..."
+//               editable={!sendingNote}
+//               multiline
+//             />
+//           </View>
+//           <TouchableOpacity
+//             style={[styles.button, sendingNote && styles.buttonDisabled]}
+//             onPress={handleAddNoteToCollection}
+//             disabled={sendingNote}
+//           >
+//             <Text style={styles.buttonText}>
+//               {sendingNote ? 'Saving...' : 'Add Note'}
+//             </Text>
+//           </TouchableOpacity>
+//         </View>
+//       );
+//     }
+
+//     if (item.type === 'assignmentHistory' && assignmentHistory.length > 0) {
+//       return (
+//         <View style={styles.card}>
+//           <Text style={styles.sectionTitle}>Assignment History</Text>
+//           <View style={[styles.detailRow, styles.headerRow]}>
+//             <Text style={[styles.label, styles.headerText]}>Assigned To</Text>
+//             <Text style={[styles.value, styles.headerText]}>Assigned At</Text>
+//           </View>
+//           {assignmentHistory.map(entry => (
+//             <View key={entry.id} style={styles.detailRow}>
+//               <Text style={styles.label}>
+//                 {entry.userName}{' '}
+//                 {entry.roleName === 'Service Engineer' ? (
+//                   <Text style={[styles.roleBadge, styles.engineerBadge]}>
+//                     {entry.roleName}
+//                   </Text>
+//                 ) : (
+//                   <Text style={[styles.roleBadge, styles.staffBadge]}>
+//                     {entry.roleName}
+//                   </Text>
+//                 )}
+//               </Text>
+//               <Text style={styles.value}>
+//                 {moment(entry.createdAt).format('DD-MM-YYYY HH:mm A')}
+//               </Text>
+//             </View>
+//           ))}
+//         </View>
+//       );
+//     }
+
+//     return null;
+//   };
+
+//   const data = [
+//     { type: 'ticket', key: 'ticket' },
+//     { type: 'complaint', key: 'complaint' },
+//     { type: 'associated', key: 'associated' },
+//     { type: 'conversations', key: 'conversations' },
+//     ...(currentUserId === ticket.engineerId && engineer
+//       ? [{ type: 'submitReview', key: 'submitReview' }]
+//       : []),
+//     ...(engineerReview.length > 0
+//       ? [{ type: 'engineerReview', key: 'engineerReview' }]
+//       : []),
+//     { type: 'ticketNotes', key: 'ticketNotes' },
+//     ...(assignmentHistory.length > 0
+//       ? [{ type: 'assignmentHistory', key: 'assignmentHistory' }]
+//       : []),
+//   ];
+
+//   return (
+//     <FlatList
+//       data={data}
+//       renderItem={renderItem}
+//       keyExtractor={item => item.key}
+//     />
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   center: {
+//     flex: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     backgroundColor: '#f9fafb',
+//   },
+//   errorText: {
+//     color: '#dc2626',
+//     fontSize: 18,
+//     fontWeight: '600',
+//     textAlign: 'center',
+//   },
+//   card: {
+//     backgroundColor: '#ffffff',
+//     borderRadius: 12,
+//     padding: 20,
+//     marginBottom: 16,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.05,
+//     shadowRadius: 6,
+//     elevation: 3,
+//   },
+//   title: {
+//     fontSize: 24,
+//     fontWeight: '700',
+//     color: '#1e293b',
+//     marginBottom: 12,
+//   },
+//   subtitle: {
+//     fontSize: 16,
+//     color: '#64748b',
+//     marginBottom: 16,
+//   },
+//   description: {
+//     fontSize: 16,
+//     color: '#4b5563',
+//     lineHeight: 24,
+//   },
+//   sectionTitle: {
+//     fontSize: 20,
+//     fontWeight: '600',
+//     color: '#1e293b',
+//     marginBottom: 16,
+//     borderBottomWidth: 1,
+//     borderBottomColor: '#e5e7eb',
+//     paddingBottom: 8,
+//   },
+//   detailRow: {
+//     flexDirection: 'row',
+//     marginBottom: 12,
+//     alignItems: 'flex-start',
+//   },
+//   headerRow: {
+//     borderBottomWidth: 2,
+//     borderBottomColor: '#e5e7eb',
+//     paddingBottom: 8,
+//     marginBottom: 12,
+//   },
+//   label: {
+//     fontSize: 16,
+//     fontWeight: '500',
+//     color: '#374151',
+//     width: '40%',
+//     marginRight: 16,
+//   },
+//   value: {
+//     fontSize: 16,
+//     color: '#4b5563',
+//     width: '60%',
+//     flexWrap: 'wrap',
+//   },
+//   headerText: {
+//     fontWeight: '600',
+//     color: '#1e293b',
+//   },
+//   dropdownContainer: {
+//     flex: 1,
+//     marginVertical: 8,
+//   },
+//   dropdown: {
+//     borderColor: '#e5e7eb',
+//     borderRadius: 8,
+//     backgroundColor: '#ffffff',
+//     paddingHorizontal: 12,
+//     paddingVertical: 10,
+//   },
+//   dropdownList: {
+//     borderColor: '#e5e7eb',
+//     borderRadius: 8,
+//     backgroundColor: '#ffffff',
+//     marginTop: 2,
+//   },
+//   placeholder: {
+//     color: '#9ca3af',
+//     fontSize: 16,
+//   },
+//   dropdownText: {
+//     fontSize: 16,
+//     color: '#374151',
+//   },
+//   inputRow: {
+//     marginBottom: 16,
+//   },
+//   labelFull: {
+//     fontSize: 16,
+//     fontWeight: '500',
+//     color: '#374151',
+//     marginBottom: 8,
+//   },
+//   textInput: {
+//     borderWidth: 1,
+//     borderColor: '#d1d5db',
+//     borderRadius: 8,
+//     padding: 12,
+//     fontSize: 16,
+//     backgroundColor: '#ffffff',
+//     minHeight: 80,
+//     textAlignVertical: 'top',
+//   },
+//   button: {
+//     backgroundColor: '#2563eb',
+//     borderRadius: 8,
+//     paddingVertical: 12,
+//     alignItems: 'center',
+//     marginTop: 8,
+//   },
+//   buttonDisabled: {
+//     backgroundColor: '#93c5fd',
+//   },
+//   buttonText: {
+//     color: '#ffffff',
+//     fontSize: 16,
+//     fontWeight: '600',
+//   },
+//   noDataText: {
+//     fontSize: 16,
+//     color: '#6b7280',
+//     textAlign: 'center',
+//     paddingVertical: 12,
+//   },
+//   replyBubble: {
+//     backgroundColor: '#eff6ff',
+//     padding: 16,
+//     borderRadius: 8,
+//     marginBottom: 12,
+//   },
+//   replyFrom: {
+//     fontSize: 16,
+//     fontWeight: '600',
+//     color: '#1e293b',
+//     marginBottom: 4,
+//   },
+//   replyMessage: {
+//     fontSize: 16,
+//     color: '#4b5563',
+//     marginBottom: 8,
+//   },
+//   replyTimestamp: {
+//     fontSize: 14,
+//     color: '#6b7280',
+//     textAlign: 'right',
+//   },
+//   noteCard: {
+//     backgroundColor: '#f3f4f6',
+//     borderRadius: 8,
+//     padding: 16,
+//     marginBottom: 12,
+//   },
+//   noteHeader: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     marginBottom: 8,
+//     flexWrap: 'wrap',
+//   },
+//   noteUser: {
+//     fontSize: 16,
+//     fontWeight: '600',
+//     color: '#1e293b',
+//     marginRight: 12,
+//   },
+//   noteRole: {
+//     backgroundColor: '#2563eb',
+//     color: '#ffffff',
+//     paddingHorizontal: 10,
+//     paddingVertical: 4,
+//     borderRadius: 12,
+//     fontSize: 14,
+//     fontWeight: '500',
+//   },
+//   noteTime: {
+//     fontSize: 14,
+//     color: '#6b7280',
+//     marginLeft: 'auto',
+//   },
+//   noteMessage: {
+//     fontSize: 16,
+//     color: '#4b5563',
+//     lineHeight: 24,
+//   },
+//   roleBadge: {
+//     borderRadius: 12,
+//     paddingHorizontal: 8,
+//     paddingVertical: 2,
+//     marginLeft: 8,
+//     fontSize: 12,
+//     fontWeight: '500',
+//   },
+//   engineerBadge: {
+//     backgroundColor: '#10b981',
+//     color: '#ffffff',
+//   },
+//   staffBadge: {
+//     backgroundColor: '#f59e0b',
+//     color: '#ffffff',
+//   },
+//   reviewBlock: {
+//     backgroundColor: '#f9fafb',
+//     borderRadius: 8,
+//     padding: 16,
+//     marginBottom: 12,
+//   },
+//   reviewHeader: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     justifyContent: 'space-between',
+//     marginBottom: 12,
+//     flexWrap: 'wrap',
+//   },
+//   engineerName: {
+//     fontSize: 16,
+//     fontWeight: '600',
+//     color: '#1e293b',
+//   },
+//   reviewDate: {
+//     fontSize: 14,
+//     color: '#6b7280',
+//   },
+//   badge: {
+//     backgroundColor: '#2563eb',
+//     borderRadius: 16,
+//     paddingHorizontal: 12,
+//     paddingVertical: 6,
+//   },
+//   badgeText: {
+//     color: '#ffffff',
+//     fontSize: 14,
+//     fontWeight: '600',
+//   },
+//   scrollableSection: {
+//     maxHeight: 400,
+//     marginBottom: 16,
+//   },
+//   separator: {
+//     height: 12,
+//   },
+// });

@@ -799,8 +799,7 @@
 //     marginTop: 10,
 //   },
 // });
-
-import React, { use, useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -809,7 +808,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Image,
-  FlatList,
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -831,6 +829,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  // State for ticket status counts and charts
   const [openCount, setOpenCount] = useState(0);
   const [openLabels, setOpenLabels] = useState([]);
   const [openData, setOpenData] = useState([]);
@@ -851,6 +850,7 @@ export default function DashboardScreen() {
   const [newTicketLabels, setNewTicketLabels] = useState([]);
   const [newTicketData, setNewTicketData] = useState([]);
 
+  // State for response and resolution time
   const [respLabels, setRespLabels] = useState([]);
   const [respData, setRespData] = useState([]);
   const [respDays, setRespDays] = useState(7);
@@ -861,11 +861,13 @@ export default function DashboardScreen() {
   const [resDays, setResDays] = useState(7);
   const [resOpen, setResOpen] = useState(false);
 
+  // State for customer satisfaction
   const [satisOpen, setSatisOpen] = useState(false);
   const [satisDays, setSatisDays] = useState(7);
   const [satisData, setSatisData] = useState([]);
   const [satisDataCategory, setSatisDataCategory] = useState([]);
 
+  // State for priority data
   const [priorityLabels, setPriorityLabels] = useState([]);
   const [priorityData, setPriorityData] = useState({
     Low: [],
@@ -874,6 +876,16 @@ export default function DashboardScreen() {
     Urgent: [],
   });
 
+  // State for New Tickets Created dropdown
+  const [newTicketDays, setNewTicketDays] = useState(7);
+  const [newTicketOpen, setNewTicketOpen] = useState(false);
+
+  // State for Card components
+  const [allTicketsCount, setAllTicketsCount] = useState(0);
+  const [activeTicketsCount, setActiveTicketsCount] = useState(0);
+  const [ticketsClosedCount, setTicketsClosedCount] = useState(0);
+
+  // Back button handler
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -895,7 +907,7 @@ export default function DashboardScreen() {
           ],
           { cancelable: false },
         );
-        return true; // prevent default back action
+        return true;
       };
 
       const backHandler = BackHandler.addEventListener(
@@ -903,17 +915,19 @@ export default function DashboardScreen() {
         onBackPress,
       );
 
-      return () => backHandler.remove(); // ✅ correct removal method
-    }, []),
+      return () => backHandler.remove();
+    }, [navigation]),
   );
 
+  // Fetch current user ID
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
     if (user) setCurrentUserId(user.uid);
   }, []);
 
-  const fetchStatusStats = async status => {
+  // Fetch status stats for a given status
+  const fetchStatusStats = async (status) => {
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - 6);
@@ -926,19 +940,52 @@ export default function DashboardScreen() {
       map[key] = 0;
     }
 
-    const q = query(collection(db, 'tickets'), where('status', '==', status));
-    const snap = await getDocs(q);
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(
+      ticketsRef,
+      where('engineerId', '==', currentUserId),
+      where('status', '==', status)
+    );
+    const staffQuery = query(
+      ticketsRef,
+      where('supportStaffId', '==', currentUserId),
+      where('status', '==', status)
+    );
+
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
 
     let total = 0;
-    snap.forEach(doc => {
-      const d =
-        doc.data().createdAt?.toDate?.() ?? new Date(doc.data().createdAt);
-      if (d >= earliest && d <= now) {
-        const key = d.toISOString().slice(0, 10);
+    const ticketMap = new Map();
+
+    engineerSnap.forEach(doc => {
+      const createdAt = new Date(doc.data().createdAt);
+      if (createdAt >= earliest && createdAt <= now) {
+        const key = createdAt.toISOString().slice(0, 10);
         if (map[key] !== undefined) {
-          map[key]++;
-          total++;
+          ticketMap.set(doc.id, doc.data());
         }
+      }
+    });
+
+    staffSnap.forEach(doc => {
+      const createdAt = new Date(doc.data().createdAt);
+      if (createdAt >= earliest && createdAt <= now) {
+        const key = createdAt.toISOString().slice(0, 10);
+        if (map[key] !== undefined) {
+          ticketMap.set(doc.id, doc.data());
+        }
+      }
+    });
+
+    ticketMap.forEach((data, id) => {
+      const createdAt = new Date(data.createdAt);
+      const key = createdAt.toISOString().slice(0, 10);
+      if (map[key] !== undefined) {
+        map[key]++;
+        total++;
       }
     });
 
@@ -952,26 +999,145 @@ export default function DashboardScreen() {
     return { total, labels, values };
   };
 
-  const fetchPriorityStats = async () => {
+  // Fetch all tickets count
+  const fetchAllTickets = async () => {
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
+    const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
+
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+
+    return ticketMap.size;
+  };
+
+  // Fetch active tickets count (OPEN or IN_PROGRESS)
+  const fetchActiveTickets = async () => {
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(
+      ticketsRef,
+      where('engineerId', '==', currentUserId),
+      where('status', 'in', ['OPEN', 'IN_PROGRESS'])
+    );
+    const staffQuery = query(
+      ticketsRef,
+      where('supportStaffId', '==', currentUserId),
+      where('status', 'in', ['OPEN', 'IN_PROGRESS'])
+    );
+
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+
+    return ticketMap.size;
+  };
+
+  // Fetch newly assigned tickets (based on engineerId or supportStaffId, last 7 days)
+  const fetchMyTickets = async () => {
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - 6);
 
-    const days = {};
+    const map = {};
     for (let i = 0; i < 7; i++) {
+      const d = new Date(earliest);
+      d.setDate(earliest.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      map[key] = 0;
+    }
+
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(
+      ticketsRef,
+      where('engineerId', '==', currentUserId),
+      where('createdAt', '>=', earliest.toISOString())
+    );
+    const staffQuery = query(
+      ticketsRef,
+      where('supportStaffId', '==', currentUserId),
+      where('createdAt', '>=', earliest.toISOString())
+    );
+
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => {
+      const createdAt = new Date(doc.data().createdAt);
+      if (createdAt >= earliest && createdAt <= now) {
+        ticketMap.set(doc.id, doc.data());
+      }
+    });
+    staffSnap.forEach(doc => {
+      const createdAt = new Date(doc.data().createdAt);
+      if (createdAt >= earliest && createdAt <= now) {
+        ticketMap.set(doc.id, doc.data());
+      }
+    });
+
+    let total = 0;
+    ticketMap.forEach((data, id) => {
+      const createdAt = new Date(data.createdAt);
+      const key = createdAt.toISOString().slice(0, 10);
+      if (map[key] !== undefined) {
+        map[key]++;
+        total++;
+      }
+    });
+
+    const labels = Object.keys(map).map(k =>
+      new Date(k).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+      }),
+    );
+    const values = Object.values(map);
+    return { total, labels, values };
+  };
+
+  // Fetch priority stats
+  const fetchPriorityStats = async () => {
+    const now = new Date();
+    const earliest = new Date(now);
+    earliest.setDate(now.getDate() - (newTicketDays - 1));
+
+    const days = {};
+    for (let i = 0; i < newTicketDays; i++) {
       const d = new Date(earliest);
       d.setDate(earliest.getDate() + i);
       const key = d.toISOString().slice(0, 10);
       days[key] = { Low: 0, Medium: 0, High: 0, Urgent: 0 };
     }
 
-    const q = query(collection(db, 'tickets'));
-    const snap = await getDocs(q);
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
+    const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
+
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
     let total = 0;
-    snap.forEach(doc => {
-      const data = doc.data();
-      const createdAt = data.createdAt?.toDate?.() ?? new Date(data.createdAt);
+    ticketMap.forEach((data, id) => {
+      const createdAt = new Date(data.createdAt);
       const priority = data.priority || 'Low';
       if (createdAt >= earliest && createdAt <= now) {
         const key = createdAt.toISOString().slice(0, 10);
@@ -999,51 +1165,10 @@ export default function DashboardScreen() {
 
     setPriorityLabels(labels);
     setPriorityData({ Low: low, Medium: medium, High: high, Urgent: urgent });
-    return { total, labels, values: low }; // Return total for new tickets
+    return { total, labels, values: low };
   };
 
-  const fetchMyTickets = async () => {
-    const now = new Date();
-    const earliest = new Date(now);
-    earliest.setDate(now.getDate() - 6);
-
-    const map = {};
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(earliest);
-      d.setDate(earliest.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      map[key] = 0;
-    }
-
-    const q = query(
-      collection(db, 'tickets'),
-      where('supportStaffId', '==', currentUserId),
-    );
-    const snap = await getDocs(q);
-
-    let total = 0;
-    snap.forEach(doc => {
-      const d =
-        doc.data().createdAt?.toDate?.() ?? new Date(doc.data().createdAt);
-      if (d >= earliest && d <= now) {
-        const key = d.toISOString().slice(0, 10);
-        if (map[key] !== undefined) {
-          map[key]++;
-          total++;
-        }
-      }
-    });
-
-    const labels = Object.keys(map).map(k =>
-      new Date(k).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      }),
-    );
-    const values = Object.values(map);
-    return { total, labels, values };
-  };
-
+  // Fetch first response time
   const fetchFirstResponse = async () => {
     const now = new Date();
     const earliest = new Date(now);
@@ -1057,17 +1182,23 @@ export default function DashboardScreen() {
       map[key] = [];
     }
 
-    const q = query(
-      collection(db, 'tickets'),
-      where('supportStaffId', '==', currentUserId),
-    );
-    const snap = await getDocs(q);
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
+    const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    snap.forEach(doc => {
-      const data = doc.data();
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+
+    ticketMap.forEach((data, id) => {
       if (data.acceptedAt && data.updatedAt) {
-        const acc = new Date(data.acceptedAt.toDate?.() ?? data.acceptedAt);
-        const upd = new Date(data.updatedAt.toDate?.() ?? data.updatedAt);
+        const acc = new Date(data.acceptedAt);
+        const upd = new Date(data.updatedAt);
         if (upd >= earliest && acc <= now) {
           const key = acc.toISOString().slice(0, 10);
           map[key]?.push((upd - acc) / 60000);
@@ -1091,6 +1222,7 @@ export default function DashboardScreen() {
     setRespData(values);
   };
 
+  // Fetch resolution time
   const fetchResolutionTime = async () => {
     const now = new Date();
     const earliest = new Date(now);
@@ -1104,17 +1236,23 @@ export default function DashboardScreen() {
       map[key] = [];
     }
 
-    const q = query(
-      collection(db, 'tickets'),
-      where('supportStaffId', '==', currentUserId),
-    );
-    const snap = await getDocs(q);
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
+    const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    snap.forEach(doc => {
-      const data = doc.data();
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+
+    ticketMap.forEach((data, id) => {
       if (data.acceptedAt && data.closedAt) {
-        const acc = new Date(data.acceptedAt.toDate?.() ?? data.acceptedAt);
-        const close = new Date(data.closedAt.toDate?.() ?? data.closedAt);
+        const acc = new Date(data.acceptedAt);
+        const close = new Date(data.closedAt);
         if (close >= earliest && acc <= now) {
           const key = acc.toISOString().slice(0, 10);
           map[key]?.push((close - acc) / 60000);
@@ -1138,6 +1276,7 @@ export default function DashboardScreen() {
     setResData(values);
   };
 
+  // Fetch customer satisfaction data
   const fetchCustomerSatisfaction = async () => {
     const now = new Date();
     const earliest = new Date(now);
@@ -1151,7 +1290,7 @@ export default function DashboardScreen() {
       low = 0;
     snap.forEach(doc => {
       const data = doc.data();
-      const created = new Date(data.createdOn?.toDate?.() ?? data.createdOn);
+      const created = new Date(data.createdOn);
       if (created >= earliest && created <= now) {
         const rating = parseInt(data.rating);
         if (rating >= 4) high++;
@@ -1184,13 +1323,23 @@ export default function DashboardScreen() {
       },
     ]);
 
-    // Fetch tickets by category (assuming a 'category' field exists in tickets)
+    // Fetch tickets by category
+    const ticketsRef = collection(db, 'tickets');
+    const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
+    const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
+
+    const [engineerSnap, staffSnap] = await Promise.all([
+      getDocs(engineerQuery),
+      getDocs(staffQuery),
+    ]);
+
+    const ticketMap = new Map();
+    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+
     const categories = {};
-    const ticketQuery = query(collection(db, 'tickets'));
-    const ticketSnap = await getDocs(ticketQuery);
-    ticketSnap.forEach(doc => {
-      const data = doc.data();
-      const created = new Date(data.createdAt?.toDate?.() ?? data.createdAt);
+    ticketMap.forEach((data, id) => {
+      const created = new Date(data.createdAt);
       if (created >= earliest && created <= now) {
         const category = data.category || 'Uncategorized';
         categories[category] = (categories[category] || 0) + 1;
@@ -1210,6 +1359,7 @@ export default function DashboardScreen() {
     setSatisDataCategory(categoryData);
   };
 
+  // Main data fetching useEffect
   useEffect(() => {
     if (!currentUserId) return;
     setLoading(true);
@@ -1228,6 +1378,7 @@ export default function DashboardScreen() {
         setClosedCount(res.total);
         setClosedLabels(res.labels);
         setClosedData(res.values);
+        setTicketsClosedCount(res.total);
       }),
       fetchMyTickets().then(res => {
         setMyTicketCount(res.total);
@@ -1239,21 +1390,32 @@ export default function DashboardScreen() {
         setNewTicketLabels(res.labels);
         setNewTicketData(res.values);
       }),
-    ]).finally(() => setLoading(false));
-  }, [currentUserId]);
+      fetchAllTickets().then(total => {
+        setAllTicketsCount(total);
+      }),
+      fetchActiveTickets().then(total => {
+        setActiveTicketsCount(total);
+      }),
+    ])
+      .finally(() => setLoading(false));
+  }, [currentUserId, newTicketDays]);
 
+  // Fetch first response time
   useEffect(() => {
     if (currentUserId) fetchFirstResponse();
   }, [currentUserId, respDays]);
 
+  // Fetch resolution time
   useEffect(() => {
     if (currentUserId) fetchResolutionTime();
   }, [currentUserId, resDays]);
 
+  // Fetch customer satisfaction
   useEffect(() => {
     if (currentUserId) fetchCustomerSatisfaction();
   }, [currentUserId, satisDays]);
 
+  // Card component
   const Card = ({ title, count }) => (
     <View style={styles.MainCard}>
       <View style={styles.Icon}>
@@ -1279,9 +1441,9 @@ export default function DashboardScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.cardGrid}>
         <Card title="My Tickets" count={myTicketCount} />
-        <Card title="Open Tickets" count={openCount} />
-        <Card title="In Progress Tickets" count={inProgressCount} />
-        <Card title="Closed Tickets" count={closedCount} />
+        <Card title="All Tickets" count={allTicketsCount} />
+        <Card title="Active Tickets" count={activeTicketsCount} />
+        <Card title="Tickets Closed" count={ticketsClosedCount} />
       </View>
 
       <View style={styles.cardChart}>
@@ -1291,14 +1453,16 @@ export default function DashboardScreen() {
             <Text style={styles.headingTwo}>This Week</Text>
           </View>
           <DropDownPicker
-            open={respOpen}
-            value={respDays}
+            open={newTicketOpen}
+            value={newTicketDays}
             items={TIME_PERIODS}
-            setOpen={setRespOpen}
-            setValue={setRespDays}
+            setOpen={setNewTicketOpen}
+            setValue={setNewTicketDays}
             style={styles.dd}
             containerStyle={{ width: 130 }}
             dropDownContainerStyle={{ backgroundColor: '#fff' }}
+            zIndex={1000}
+            zIndexInverse={1000}
           />
         </View>
         <LineChart
@@ -1360,6 +1524,8 @@ export default function DashboardScreen() {
             style={styles.dd}
             containerStyle={{ width: 130 }}
             dropDownContainerStyle={{ backgroundColor: '#fff' }}
+            zIndex={900}
+            zIndexInverse={900}
           />
         </View>
         <LineChart
@@ -1398,6 +1564,8 @@ export default function DashboardScreen() {
             style={styles.dd}
             containerStyle={{ width: 130 }}
             dropDownContainerStyle={{ backgroundColor: '#fff' }}
+            zIndex={800}
+            zIndexInverse={800}
           />
         </View>
         <LineChart
@@ -1431,6 +1599,8 @@ export default function DashboardScreen() {
             style={styles.dd}
             containerStyle={{ width: 150 }}
             dropDownContainerStyle={{ backgroundColor: '#fff' }}
+            zIndex={700}
+            zIndexInverse={700}
           />
         </View>
         <PieChart
@@ -1522,8 +1692,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4a90e2',
     textAlign: 'right',
-    marginTop: 10,
-    marginBottom: 5,
+    marginTop: 2,
+    marginBottom: 2,
   },
   chart: {
     borderRadius: 8,
