@@ -48,6 +48,7 @@ import InProgressTicketScreen from './customDrawer/TicketManagementStack/screens
 import ClosedTicketStaff from './customDrawer/TicketManagementStack/screens/staffScreen/ClosedTicketStaff';
 import AllTicketsStaff from './customDrawer/TicketManagementStack/screens/staffScreen/AllTicketsStaff';
 import { CustomDrawerContent } from './customDrawer/CustomDrawerContent';
+import PrivacyPolicy from './PrivacyPolicy';
 
 const Drawer = createDrawerNavigator();
 
@@ -69,6 +70,7 @@ const AppNavigater = ({ route }) => {
         }
         initialParams={{ userUid, userType }}
       />
+
       {userType === 'engineer' ? (
         <>
           <Drawer.Screen
@@ -93,6 +95,12 @@ const AppNavigater = ({ route }) => {
             name="AllTickets"
             component={AllTicketsEnginner}
             initialParams={{ userUid, userType }}
+            options={{ headerShown: true }}
+          />
+          <Drawer.Screen
+            name="PrivacyPolicy"
+            component={PrivacyPolicy}
+             initialParams={{ userUid, userType }}
             options={{ headerShown: true }}
           />
         </>
@@ -120,6 +128,12 @@ const AppNavigater = ({ route }) => {
             name="ClosedTicket"
             component={ClosedTicketStaff}
             initialParams={{ userUid, userType }}
+            options={{ headerShown: true }}
+          />
+          <Drawer.Screen
+            name="PrivacyPolicy"
+            component={PrivacyPolicy}
+             initialParams={{ userUid, userType }}
             options={{ headerShown: true }}
           />
         </>

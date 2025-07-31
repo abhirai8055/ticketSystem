@@ -10,6 +10,7 @@ import ActiveTickets from './src/customDrawer/TicketManagementStack/screens/engi
 import NewAssignTicketEngineer from './src/customDrawer/TicketManagementStack/screens/engineerScreen/NewAssignTicketEngineer';
 import EditTicketScreen from './src/customDrawer/TicketManagementStack/screens/EditTicketScreen';
 import SmuDashboard from './src/SmuDashboard';
+import PrivacyPolicy from './src/PrivacyPolicy';
 
 const Stack = createStackNavigator();
 
@@ -57,6 +58,11 @@ const App = () => {
           component={EditTicketScreen}
           options={{ headerShown: true }}
         />
+       <Stack.Screen
+          name="PrivacyPolicy"
+          component={PrivacyPolicy}
+          options={{ headerShown: true }}
+        /> 
       </Stack.Navigator>
     </NavigationContainer>
   );

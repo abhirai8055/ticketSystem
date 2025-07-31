@@ -1,4 +1,4 @@
-package com.ticketsystem
+package com.jtlticketsystem
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

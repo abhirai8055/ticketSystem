@@ -1097,8 +1097,8 @@ export default function NewAssignTicketEngineer({ userUid: propUid, route }) {
   const [selectedPriority, setSelectedPriority] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedAgent, setSelectedAgent] = useState('All');
-  const [agentMap, setAgentMap] = useState({}); // Store supportStaffId to displayName mapping
-  const [categoryMap, setCategoryMap] = useState({}); // Store category ID to name mapping
+  const [agentMap, setAgentMap] = useState({}); 
+  const [categoryMap, setCategoryMap] = useState({}); 
 
   useEffect(() => {
     const fetchUnassignedTickets = async () => {

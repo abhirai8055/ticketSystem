@@ -236,15 +236,6 @@
 //   },
 // });
 
-
-
-
-
-
-
-
-
-
 import React, { useState } from 'react';
 import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import {
@@ -260,7 +251,7 @@ import { getAuth, signOut } from 'firebase/auth';
 export function CustomDrawerContent(props) {
   const [ticketExpanded, setTicketExpanded] = useState(false);
   const drawerRoute = props.state.routes[props.state.index];
-  const currentScreen = drawerRoute.name; // Direct screen name kyunki nesting hata diya
+  const currentScreen = drawerRoute.name; 
 
   const { userType, userUid } = props;
 
@@ -390,6 +381,19 @@ export function CustomDrawerContent(props) {
               })}
             </View>
           )}
+
+          <DrawerItem
+            label="PrivacyPolicy"
+            onPress={() => props.navigation.navigate('PrivacyPolicy')}
+            focused={currentScreen === 'PrivacyPolicy'}
+            icon={() => (
+              <Image
+                source={require('../images/PrivacyPolicy.png')}
+                style={{ width: 20, height: 20 }}
+              />
+            )}
+            labelStyle={{ fontWeight: 'bold', fontSize: 16, color: 'black' }}
+          />
         </View>
       </DrawerContentScrollView>
 
@@ -478,13 +482,6 @@ const styles = StyleSheet.create({
   },
 });
 
-
-
-
-
-
-
- 
 // Stack navigation Code
 
 // import React, { useState } from 'react';
@@ -736,4 +733,3 @@ const styles = StyleSheet.create({
 //     cursor: 'pointer',
 //   },
 // });
-

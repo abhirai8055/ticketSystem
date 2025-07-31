@@ -889,6 +889,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
+        if (!navigation) return true;
         Alert.alert(
           'Logout Confirmation',
           'Do you want to logout and go back to the Login screen?',
@@ -924,10 +925,12 @@ export default function DashboardScreen() {
     const auth = getAuth();
     const user = auth.currentUser;
     if (user) setCurrentUserId(user.uid);
+    else setLoading(false); // Stop loading if no user
   }, []);
 
   // Fetch status stats for a given status
   const fetchStatusStats = async (status) => {
+    if (!currentUserId) return { total: 0, labels: [], values: [] };
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - 6);
@@ -952,73 +955,85 @@ export default function DashboardScreen() {
       where('status', '==', status)
     );
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    let total = 0;
-    const ticketMap = new Map();
+      let total = 0;
+      const ticketMap = new Map();
 
-    engineerSnap.forEach(doc => {
-      const createdAt = new Date(doc.data().createdAt);
-      if (createdAt >= earliest && createdAt <= now) {
+      engineerSnap.forEach(doc => {
+        const createdAt = new Date(doc.data().createdAt);
+        if (createdAt >= earliest && createdAt <= now) {
+          const key = createdAt.toISOString().slice(0, 10);
+          if (map[key] !== undefined) {
+            ticketMap.set(doc.id, doc.data());
+          }
+        }
+      });
+
+      staffSnap.forEach(doc => {
+        const createdAt = new Date(doc.data().createdAt);
+        if (createdAt >= earliest && createdAt <= now) {
+          const key = createdAt.toISOString().slice(0, 10);
+          if (map[key] !== undefined) {
+            ticketMap.set(doc.id, doc.data());
+          }
+        }
+      });
+
+      ticketMap.forEach((data, id) => {
+        const createdAt = new Date(data.createdAt);
         const key = createdAt.toISOString().slice(0, 10);
         if (map[key] !== undefined) {
-          ticketMap.set(doc.id, doc.data());
+          map[key]++;
+          total++;
         }
-      }
-    });
+      });
 
-    staffSnap.forEach(doc => {
-      const createdAt = new Date(doc.data().createdAt);
-      if (createdAt >= earliest && createdAt <= now) {
-        const key = createdAt.toISOString().slice(0, 10);
-        if (map[key] !== undefined) {
-          ticketMap.set(doc.id, doc.data());
-        }
-      }
-    });
-
-    ticketMap.forEach((data, id) => {
-      const createdAt = new Date(data.createdAt);
-      const key = createdAt.toISOString().slice(0, 10);
-      if (map[key] !== undefined) {
-        map[key]++;
-        total++;
-      }
-    });
-
-    const labels = Object.keys(map).map(k =>
-      new Date(k).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      }),
-    );
-    const values = Object.values(map);
-    return { total, labels, values };
+      const labels = Object.keys(map).map(k =>
+        new Date(k).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+        }),
+      );
+      const values = Object.values(map);
+      return { total, labels, values };
+    } catch (error) {
+      console.error('Error fetching status stats:', error);
+      return { total: 0, labels: [], values: [] };
+    }
   };
 
   // Fetch all tickets count
   const fetchAllTickets = async () => {
+    if (!currentUserId) return 0;
     const ticketsRef = collection(db, 'tickets');
     const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
     const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
-    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
-    return ticketMap.size;
+      return ticketMap.size;
+    } catch (error) {
+      console.error('Error fetching all tickets:', error);
+      return 0;
+    }
   };
 
   // Fetch active tickets count (OPEN or IN_PROGRESS)
   const fetchActiveTickets = async () => {
+    if (!currentUserId) return 0;
     const ticketsRef = collection(db, 'tickets');
     const engineerQuery = query(
       ticketsRef,
@@ -1031,20 +1046,26 @@ export default function DashboardScreen() {
       where('status', 'in', ['OPEN', 'IN_PROGRESS'])
     );
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
-    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
-    return ticketMap.size;
+      return ticketMap.size;
+    } catch (error) {
+      console.error('Error fetching active tickets:', error);
+      return 0;
+    }
   };
 
   // Fetch newly assigned tickets (based on engineerId or supportStaffId, last 7 days)
   const fetchMyTickets = async () => {
+    if (!currentUserId) return { total: 0, labels: [], values: [] };
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - 6);
@@ -1069,47 +1090,53 @@ export default function DashboardScreen() {
       where('createdAt', '>=', earliest.toISOString())
     );
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => {
-      const createdAt = new Date(doc.data().createdAt);
-      if (createdAt >= earliest && createdAt <= now) {
-        ticketMap.set(doc.id, doc.data());
-      }
-    });
-    staffSnap.forEach(doc => {
-      const createdAt = new Date(doc.data().createdAt);
-      if (createdAt >= earliest && createdAt <= now) {
-        ticketMap.set(doc.id, doc.data());
-      }
-    });
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => {
+        const createdAt = new Date(doc.data().createdAt);
+        if (createdAt >= earliest && createdAt <= now) {
+          ticketMap.set(doc.id, doc.data());
+        }
+      });
+      staffSnap.forEach(doc => {
+        const createdAt = new Date(doc.data().createdAt);
+        if (createdAt >= earliest && createdAt <= now) {
+          ticketMap.set(doc.id, doc.data());
+        }
+      });
 
-    let total = 0;
-    ticketMap.forEach((data, id) => {
-      const createdAt = new Date(data.createdAt);
-      const key = createdAt.toISOString().slice(0, 10);
-      if (map[key] !== undefined) {
-        map[key]++;
-        total++;
-      }
-    });
+      let total = 0;
+      ticketMap.forEach((data, id) => {
+        const createdAt = new Date(data.createdAt);
+        const key = createdAt.toISOString().slice(0, 10);
+        if (map[key] !== undefined) {
+          map[key]++;
+          total++;
+        }
+      });
 
-    const labels = Object.keys(map).map(k =>
-      new Date(k).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      }),
-    );
-    const values = Object.values(map);
-    return { total, labels, values };
+      const labels = Object.keys(map).map(k =>
+        new Date(k).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+        }),
+      );
+      const values = Object.values(map);
+      return { total, labels, values };
+    } catch (error) {
+      console.error('Error fetching my tickets:', error);
+      return { total: 0, labels: [], values: [] };
+    }
   };
 
   // Fetch priority stats
   const fetchPriorityStats = async () => {
+    if (!currentUserId) return { total: 0, labels: [], values: [] };
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - (newTicketDays - 1));
@@ -1126,50 +1153,56 @@ export default function DashboardScreen() {
     const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
     const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
-    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
-    let total = 0;
-    ticketMap.forEach((data, id) => {
-      const createdAt = new Date(data.createdAt);
-      const priority = data.priority || 'Low';
-      if (createdAt >= earliest && createdAt <= now) {
-        const key = createdAt.toISOString().slice(0, 10);
-        if (days[key]) {
-          days[key][priority] = (days[key][priority] || 0) + 1;
-          total++;
+      let total = 0;
+      ticketMap.forEach((data, id) => {
+        const createdAt = new Date(data.createdAt);
+        const priority = data.priority || 'Low';
+        if (createdAt >= earliest && createdAt <= now) {
+          const key = createdAt.toISOString().slice(0, 10);
+          if (days[key]) {
+            days[key][priority] = (days[key][priority] || 0) + 1;
+            total++;
+          }
         }
-      }
-    });
+      });
 
-    const labels = Object.keys(days).map(k =>
-      new Date(k).toLocaleDateString('en-GB', { weekday: 'short' }),
-    );
+      const labels = Object.keys(days).map(k =>
+        new Date(k).toLocaleDateString('en-GB', { weekday: 'short' }),
+      );
 
-    const low = [],
-      medium = [],
-      high = [],
-      urgent = [];
-    Object.values(days).forEach(day => {
-      low.push(day.Low);
-      medium.push(day.Medium);
-      high.push(day.High);
-      urgent.push(day.Urgent);
-    });
+      const low = [],
+        medium = [],
+        high = [],
+        urgent = [];
+      Object.values(days).forEach(day => {
+        low.push(day.Low);
+        medium.push(day.Medium);
+        high.push(day.High);
+        urgent.push(day.Urgent);
+      });
 
-    setPriorityLabels(labels);
-    setPriorityData({ Low: low, Medium: medium, High: high, Urgent: urgent });
-    return { total, labels, values: low };
+      setPriorityLabels(labels);
+      setPriorityData({ Low: low, Medium: medium, High: high, Urgent: urgent });
+      return { total, labels, values: low };
+    } catch (error) {
+      console.error('Error fetching priority stats:', error);
+      return { total: 0, labels: [], values: [] };
+    }
   };
 
   // Fetch first response time
   const fetchFirstResponse = async () => {
+    if (!currentUserId) return;
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - (respDays - 1));
@@ -1186,44 +1219,51 @@ export default function DashboardScreen() {
     const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
     const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
-    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
-    ticketMap.forEach((data, id) => {
-      if (data.acceptedAt && data.updatedAt) {
-        const acc = new Date(data.acceptedAt);
-        const upd = new Date(data.updatedAt);
-        if (upd >= earliest && acc <= now) {
-          const key = acc.toISOString().slice(0, 10);
-          map[key]?.push((upd - acc) / 60000);
+      ticketMap.forEach((data, id) => {
+        if (data.acceptedAt && data.updatedAt) {
+          const acc = new Date(data.acceptedAt);
+          const upd = new Date(data.updatedAt);
+          if (upd >= earliest && acc <= now) {
+            const key = acc.toISOString().slice(0, 10);
+            map[key]?.push((upd - acc) / 60000);
+          }
         }
-      }
-    });
+      });
 
-    const labels = Object.keys(map).map(k =>
-      new Date(k).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      }),
-    );
-    const values = Object.values(map).map(arr =>
-      arr.length
-        ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2))
-        : 0,
-    );
+      const labels = Object.keys(map).map(k =>
+        new Date(k).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+        }),
+      );
+      const values = Object.values(map).map(arr =>
+        arr.length
+          ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2))
+          : 0,
+      );
 
-    setRespLabels(labels);
-    setRespData(values);
+      setRespLabels(labels);
+      setRespData(values);
+    } catch (error) {
+      console.error('Error fetching first response time:', error);
+      setRespLabels([]);
+      setRespData([]);
+    }
   };
 
   // Fetch resolution time
   const fetchResolutionTime = async () => {
+    if (!currentUserId) return;
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - (resDays - 1));
@@ -1240,123 +1280,136 @@ export default function DashboardScreen() {
     const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
     const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+    try {
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
-    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
-    ticketMap.forEach((data, id) => {
-      if (data.acceptedAt && data.closedAt) {
-        const acc = new Date(data.acceptedAt);
-        const close = new Date(data.closedAt);
-        if (close >= earliest && acc <= now) {
-          const key = acc.toISOString().slice(0, 10);
-          map[key]?.push((close - acc) / 60000);
+      ticketMap.forEach((data, id) => {
+        if (data.acceptedAt && data.closedAt) {
+          const acc = new Date(data.acceptedAt);
+          const close = new Date(data.closedAt);
+          if (close >= earliest && acc <= now) {
+            const key = acc.toISOString().slice(0, 10);
+            map[key]?.push((close - acc) / 60000);
+          }
         }
-      }
-    });
+      });
 
-    const labels = Object.keys(map).map(k =>
-      new Date(k).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-      }),
-    );
-    const values = Object.values(map).map(arr =>
-      arr.length
-        ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2))
-        : 0,
-    );
+      const labels = Object.keys(map).map(k =>
+        new Date(k).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+        }),
+      );
+      const values = Object.values(map).map(arr =>
+        arr.length
+          ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2))
+          : 0,
+      );
 
-    setResLabels(labels);
-    setResData(values);
+      setResLabels(labels);
+      setResData(values);
+    } catch (error) {
+      console.error('Error fetching resolution time:', error);
+      setResLabels([]);
+      setResData([]);
+    }
   };
 
   // Fetch customer satisfaction data
   const fetchCustomerSatisfaction = async () => {
+    if (!currentUserId) return;
     const now = new Date();
     const earliest = new Date(now);
     earliest.setDate(now.getDate() - (satisDays - 1));
 
     const q = query(collection(db, 'customer-ticket-reviews'));
-    const snap = await getDocs(q);
+    try {
+      const snap = await getDocs(q);
 
-    let high = 0,
-      mid = 0,
-      low = 0;
-    snap.forEach(doc => {
-      const data = doc.data();
-      const created = new Date(data.createdOn);
-      if (created >= earliest && created <= now) {
-        const rating = parseInt(data.rating);
-        if (rating >= 4) high++;
-        else if (rating === 3) mid++;
-        else low++;
-      }
-    });
+      let high = 0,
+        mid = 0,
+        low = 0;
+      snap.forEach(doc => {
+        const data = doc.data();
+        const created = new Date(data.createdOn);
+        if (created >= earliest && created <= now) {
+          const rating = parseInt(data.rating);
+          if (rating >= 4) high++;
+          else if (rating === 3) mid++;
+          else low++;
+        }
+      });
 
-    setSatisData([
-      {
-        name: 'Highly Satisfied',
-        population: high,
-        color: '#00bcd4',
-        legendFontColor: '#333',
-        legendFontSize: 12,
-      },
-      {
-        name: 'Satisfied',
-        population: mid,
-        color: '#2196f3',
-        legendFontColor: '#333',
-        legendFontSize: 12,
-      },
-      {
-        name: 'Unsatisfied',
-        population: low,
-        color: '#9c27b0',
-        legendFontColor: '#333',
-        legendFontSize: 12,
-      },
-    ]);
+      setSatisData([
+        {
+          name: 'Highly Satisfied',
+          population: high,
+          color: '#00bcd4',
+          legendFontColor: '#333',
+          legendFontSize: 12,
+        },
+        {
+          name: 'Satisfied',
+          population: mid,
+          color: '#2196f3',
+          legendFontColor: '#333',
+          legendFontSize: 12,
+        },
+        {
+          name: 'Unsatisfied',
+          population: low,
+          color: '#9c27b0',
+          legendFontColor: '#333',
+          legendFontSize: 12,
+        },
+      ]);
 
-    // Fetch tickets by category
-    const ticketsRef = collection(db, 'tickets');
-    const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
-    const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
+      // Fetch tickets by category
+      const ticketsRef = collection(db, 'tickets');
+      const engineerQuery = query(ticketsRef, where('engineerId', '==', currentUserId));
+      const staffQuery = query(ticketsRef, where('supportStaffId', '==', currentUserId));
 
-    const [engineerSnap, staffSnap] = await Promise.all([
-      getDocs(engineerQuery),
-      getDocs(staffQuery),
-    ]);
+      const [engineerSnap, staffSnap] = await Promise.all([
+        getDocs(engineerQuery),
+        getDocs(staffQuery),
+      ]);
 
-    const ticketMap = new Map();
-    engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
-    staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      const ticketMap = new Map();
+      engineerSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
+      staffSnap.forEach(doc => ticketMap.set(doc.id, doc.data()));
 
-    const categories = {};
-    ticketMap.forEach((data, id) => {
-      const created = new Date(data.createdAt);
-      if (created >= earliest && created <= now) {
-        const category = data.category || 'Uncategorized';
-        categories[category] = (categories[category] || 0) + 1;
-      }
-    });
+      const categories = {};
+      ticketMap.forEach((data, id) => {
+        const created = new Date(data.createdAt);
+        if (created >= earliest && created <= now) {
+          const category = data.category || 'Uncategorized';
+          categories[category] = (categories[category] || 0) + 1;
+        }
+      });
 
-    const categoryData = Object.entries(categories).map(
-      ([name, count], index) => ({
-        name,
-        population: count,
-        color: ['#0863eb', '#931ef2', '#fd6900', '#00bcd4'][index % 4],
-        legendFontColor: '#333',
-        legendFontSize: 12,
-      }),
-    );
+      const categoryData = Object.entries(categories).map(
+        ([name, count], index) => ({
+          name,
+          population: count,
+          color: ['#0863eb', '#931ef2', '#fd6900', '#00bcd4'][index % 4],
+          legendFontColor: '#333',
+          legendFontSize: 12,
+        }),
+      );
 
-    setSatisDataCategory(categoryData);
+      setSatisDataCategory(categoryData);
+    } catch (error) {
+      console.error('Error fetching customer satisfaction:', error);
+      setSatisData([]);
+      setSatisDataCategory([]);
+    }
   };
 
   // Main data fetching useEffect
@@ -1397,6 +1450,7 @@ export default function DashboardScreen() {
         setActiveTicketsCount(total);
       }),
     ])
+      .catch(error => console.error('Error in Promise.all:', error))
       .finally(() => setLoading(false));
   }, [currentUserId, newTicketDays]);
 
@@ -1425,9 +1479,140 @@ export default function DashboardScreen() {
         />
         <Text style={styles.heading}>{title}</Text>
       </View>
-      <Text style={styles.count}>{count}</Text>
+      <Text style={styles.count}>{count || 0}</Text>
     </View>
   );
+
+  // Render charts only if data is valid
+  const renderNewTicketsChart = () => {
+    if (!priorityLabels.length || !priorityData.Low.length) return null;
+    return (
+      <LineChart
+        data={{
+          labels: priorityLabels,
+          datasets: [
+            {
+              data: priorityData.Low,
+              color: () => '#00bcd4',
+              strokeWidth: 2,
+            },
+            {
+              data: priorityData.Medium,
+              color: () => '#2196f3',
+              strokeWidth: 2,
+            },
+            {
+              data: priorityData.High,
+              color: () => '#ff9800',
+              strokeWidth: 2,
+            },
+            {
+              data: priorityData.Urgent,
+              color: () => '#f44336',
+              strokeWidth: 2,
+            },
+          ],
+          legend: ['Low', 'Medium', 'High', 'Urgent'],
+        }}
+        width={Dimensions.get('window').width - 70}
+        height={220}
+        chartConfig={{
+          backgroundGradientFrom: '#fff',
+          backgroundGradientTo: '#fff',
+          decimalPlaces: 0,
+          color: () => '#333',
+          labelColor: () => '#666',
+          style: { borderRadius: 10 },
+        }}
+        style={styles.chart}
+        bezier
+      />
+    );
+  };
+
+  const renderFirstResponseChart = () => {
+    if (!respLabels.length || !respData.length) return null;
+    return (
+      <LineChart
+        data={{
+          labels: respLabels,
+          datasets: [{ data: respData, color: () => '#e26a4a' }],
+        }}
+        width={Dimensions.get('window').width - 70}
+        height={160}
+        chartConfig={{
+          backgroundGradientFrom: '#fff',
+          backgroundGradientTo: '#fff',
+          color: () => '#e26a4a',
+          labelColor: () => '#333',
+          decimalPlaces: 2,
+        }}
+        style={styles.chart}
+        bezier
+      />
+    );
+  };
+
+  const renderResolutionTimeChart = () => {
+    if (!resLabels.length || !resData.length) return null;
+    return (
+      <LineChart
+        data={{
+          labels: resLabels,
+          datasets: [{ data: resData, color: () => '#ff9800' }],
+        }}
+        width={Dimensions.get('window').width - 70}
+        height={160}
+        chartConfig={{
+          backgroundGradientFrom: '#fff',
+          backgroundGradientTo: '#fff',
+          color: () => '#ff9800',
+          labelColor: () => '#333',
+          decimalPlaces: 2,
+        }}
+        style={styles.chart}
+        bezier
+      />
+    );
+  };
+
+  const renderSatisfactionChart = () => {
+    if (!satisData.length) return null;
+    return (
+      <PieChart
+        data={satisData}
+        width={Dimensions.get('window').width - 70}
+        height={180}
+        chartConfig={{
+          color: () => '#333',
+          labelColor: () => '#333',
+        }}
+        accessor="population"
+        backgroundColor="transparent"
+        paddingLeft="15"
+        absolute
+      />
+    );
+  };
+
+  const renderCategoryChart = () => {
+    if (!satisDataCategory.length) return null;
+    return (
+      <PieChart
+        data={satisDataCategory}
+        width={Dimensions.get('window').width - 70}
+        height={180}
+        chartConfig={{
+          color: () => '#333',
+          labelColor: () => '#333',
+        }}
+        accessor="population"
+        backgroundColor="transparent"
+        paddingLeft="15"
+        absolute
+      />
+    );
+  };
 
   if (loading) {
     return (
@@ -1465,46 +1650,7 @@ export default function DashboardScreen() {
             zIndexInverse={1000}
           />
         </View>
-        <LineChart
-          data={{
-            labels: priorityLabels,
-            datasets: [
-              {
-                data: priorityData.Low,
-                color: () => '#00bcd4',
-                strokeWidth: 2,
-              },
-              {
-                data: priorityData.Medium,
-                color: () => '#2196f3',
-                strokeWidth: 2,
-              },
-              {
-                data: priorityData.High,
-                color: () => '#ff9800',
-                strokeWidth: 2,
-              },
-              {
-                data: priorityData.Urgent,
-                color: () => '#f44336',
-                strokeWidth: 2,
-              },
-            ],
-            legend: ['Low', 'Medium', 'High', 'Urgent'],
-          }}
-          width={Dimensions.get('window').width - 70}
-          height={220}
-          chartConfig={{
-            backgroundGradientFrom: '#fff',
-            backgroundGradientTo: '#fff',
-            decimalPlaces: 0,
-            color: () => '#333',
-            labelColor: () => '#666',
-            style: { borderRadius: 10 },
-          }}
-          style={styles.chart}
-          bezier
-        />
+        {renderNewTicketsChart()}
       </View>
 
       <View style={styles.cardChart}>
@@ -1528,23 +1674,7 @@ export default function DashboardScreen() {
             zIndexInverse={900}
           />
         </View>
-        <LineChart
-          data={{
-            labels: respLabels,
-            datasets: [{ data: respData, color: () => '#e26a4a' }],
-          }}
-          width={Dimensions.get('window').width - 70}
-          height={160}
-          chartConfig={{
-            backgroundGradientFrom: '#fff',
-            backgroundGradientTo: '#fff',
-            color: () => '#e26a4a',
-            labelColor: () => '#333',
-            decimalPlaces: 2,
-          }}
-          style={styles.chart}
-          bezier
-        />
+        {renderFirstResponseChart()}
       </View>
 
       <View style={styles.cardChart}>
@@ -1568,23 +1698,7 @@ export default function DashboardScreen() {
             zIndexInverse={800}
           />
         </View>
-        <LineChart
-          data={{
-            labels: resLabels,
-            datasets: [{ data: resData, color: () => '#ff9800' }],
-          }}
-          width={Dimensions.get('window').width - 70}
-          height={160}
-          chartConfig={{
-            backgroundGradientFrom: '#fff',
-            backgroundGradientTo: '#fff',
-            color: () => '#ff9800',
-            labelColor: () => '#333',
-            decimalPlaces: 2,
-          }}
-          style={styles.chart}
-          bezier
-        />
+        {renderResolutionTimeChart()}
       </View>
 
       <View style={styles.cardChart}>
@@ -1603,38 +1717,14 @@ export default function DashboardScreen() {
             zIndexInverse={700}
           />
         </View>
-        <PieChart
-          data={satisData}
-          width={Dimensions.get('window').width - 70}
-          height={180}
-          chartConfig={{
-            color: () => '#333',
-            labelColor: () => '#333',
-          }}
-          accessor="population"
-          backgroundColor="transparent"
-          paddingLeft="15"
-          absolute
-        />
+        {renderSatisfactionChart()}
       </View>
 
       <View style={styles.cardChart}>
         <View style={styles.row}>
           <Text style={styles.heading}>Tickets by Category</Text>
         </View>
-        <PieChart
-          data={satisDataCategory}
-          width={Dimensions.get('window').width - 70}
-          height={180}
-          chartConfig={{
-            color: () => '#333',
-            labelColor: () => '#333',
-          }}
-          accessor="population"
-          backgroundColor="transparent"
-          paddingLeft="15"
-          absolute
-        />
+        {renderCategoryChart()}
       </View>
     </ScrollView>
   );
@@ -1724,7 +1814,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 });
-
 //MAIN
 // import React, { useEffect, useState } from 'react';
 // import {
